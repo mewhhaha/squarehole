@@ -1,4 +1,5 @@
 import type { Html } from "./node.mts";
+import type { FixiAttributes } from "./fixi.mts";
 
 export namespace JSX {
   interface AriaAttributes {
