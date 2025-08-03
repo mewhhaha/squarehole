@@ -1,0 +1,49 @@
+{
+  "name": "@mewhhaha/squarehole",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "",
+  "bin": {
+    "fs-routes": "./src/fs-routes/routes.mts"
+  },
+  "exports": {
+    ".": {
+      "import": "./src/router.mts",
+      "types": "./src/router.mts"
+    },
+    "./components": {
+      "import": "./src/suspense.tsx",
+      "types": "./src/suspense.tsx"
+    },
+    "./fs-routes": {
+      "import": "./src/fs-routes/js.mts",
+      "types": "./src/fs-routes/js.mts"
+    },
+    "./types": {
+      "import": "./src/types.mts",
+      "types": "./src/types.mts"
+    },
+    "./jsx-runtime": {
+      "import": "./src/runtime/jsx-runtime.mts",
+      "types": "./src/runtime/jsx-runtime.mts"
+    },
+    "./jsx-dev-runtime": {
+      "import": "./src/runtime/jsx-dev-runtime.mts",
+      "types": "./src/runtime/jsx-dev-runtime.mts"
+    },
+    "./vite-plugin": {
+      "import": "./src/vite-plugin.mts",
+      "types": "./src/vite-plugin.mts"
+    }
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250620.0",
+    "@types/node": "^24.0.3",
+    "typescript": "^5.8.3",
+    "vite": "*"
+  },
+  "packageManager": "pnpm@10.13.1+sha512.37ebf1a5c7a30d5fabe0c5df44ee8da4c965ca0c5af3dbab28c3a1681b70a256218d05c81c9c0dcf767ef6b8551eb5b960042b9ed4300c59242336377e01cfad"
+}
