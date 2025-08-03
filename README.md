@@ -66,7 +66,7 @@ export default function HomePage() {
     <html>
       <head>
         <title>Welcome to @mewhhaha/squarehole</title>
-        <script 
+        <script
           src="https://cdn.jsdelivr.net/gh/bigskysoftware/fixi@0.9.0/fixi.js"
           crossorigin="anonymous"
           integrity="sha256-0957yKwrGW4niRASx0/UxJxBY/xBhYK63vDCnTF7hH4="
@@ -142,11 +142,11 @@ export async function action({ request, context }) {
   const formData = await request.formData();
   const email = formData.get('email');
   const message = formData.get('message');
-  
+
   await context.env.DB.prepare(
     'INSERT INTO messages (email, message) VALUES (?, ?)'
   ).bind(email, message).run();
-  
+
   return Response.redirect('/thank-you');
 }
 
@@ -170,9 +170,9 @@ export default function SearchPage() {
     <div>
       <h1>Product Search</h1>
       <form fx-action="/api/search" fx-target="#results" fx-trigger="input">
-        <input 
-          type="search" 
-          name="q" 
+        <input
+          type="search"
+          name="q"
           placeholder="Search products..."
         />
       </form>
@@ -187,9 +187,9 @@ export default function SearchPage() {
 export async function loader({ request }) {
   const url = new URL(request.url);
   const query = url.searchParams.get('q');
-  
+
   const products = await searchProducts(query);
-  
+
   // Using JSX in loader with toPromise()
   const html = await (
     <>
@@ -204,9 +204,9 @@ export async function loader({ request }) {
       ))}
     </>
   ).toPromise();
-  
-  return new Response(html, { 
-    headers: { 'Content-Type': 'text/html' } 
+
+  return new Response(html, {
+    headers: { 'Content-Type': 'text/html' }
   });
 }
 ```
@@ -256,7 +256,7 @@ You can use JSX directly in loaders and actions, then convert to string or strea
 // app/api/users.tsx
 export async function loader({ request }) {
   const users = await getUsers();
-  
+
   // Option 1: Convert to string with toPromise()
   const html = await (
     <ul>
@@ -270,16 +270,16 @@ export async function loader({ request }) {
       ))}
     </ul>
   ).toPromise();
-  
-  return new Response(html, { 
-    headers: { 'Content-Type': 'text/html' } 
+
+  return new Response(html, {
+    headers: { 'Content-Type': 'text/html' }
   });
 }
 
 // app/api/posts.tsx
 export async function loader({ request }) {
   const posts = await getPosts();
-  
+
   // Option 2: Stream the response with toReadableStream()
   const stream = (
     <div class="posts">
@@ -292,9 +292,9 @@ export async function loader({ request }) {
       ))}
     </div>
   ).toReadableStream();
-  
-  return new Response(stream, { 
-    headers: { 'Content-Type': 'text/html' } 
+
+  return new Response(stream, {
+    headers: { 'Content-Type': 'text/html' }
   });
 }
 
@@ -323,9 +323,9 @@ export async function loader({ request }) {
       </Suspense>
     </div>
   ).toReadableStream();
-  
-  return new Response(stream, { 
-    headers: { 'Content-Type': 'text/html' } 
+
+  return new Response(stream, {
+    headers: { 'Content-Type': 'text/html' }
   });
 }
 ```
@@ -341,7 +341,7 @@ export default function RootLayout({ children }) {
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         {/* For production, vendor fixi.js in public/ and use: <script src="/fixi.js"></script> */}
-        <script 
+        <script
           src="https://cdn.jsdelivr.net/gh/bigskysoftware/fixi@0.9.0/fixi.js"
           crossorigin="anonymous"
           integrity="sha256-0957yKwrGW4niRASx0/UxJxBY/xBhYK63vDCnTF7hH4="
@@ -454,7 +454,7 @@ export default defineConfig({
     cloudflare({
       viteEnvironment: { name: 'ssr' }
     }),
-    squarehole({ 
+    squarehole({
       appFolder: './app',     // Routes directory (default: './app')
       fixImportMeta: true,    // Fix import.meta.url (default: true)
     }),
@@ -553,7 +553,7 @@ export default function RootLayout({ children }) {
     <html>
       <head>
         <meta charset="utf-8" />
-        <script 
+        <script
           src="https://cdn.jsdelivr.net/gh/bigskysoftware/fixi@0.9.0/fixi.js"
           crossorigin="anonymous"
           integrity="sha256-0957yKwrGW4niRASx0/UxJxBY/xBhYK63vDCnTF7hH4="
@@ -588,7 +588,7 @@ export default function TodoList() {
         <input type="text" name="task" required />
         <button type="submit">Add Todo</button>
       </form>
-      
+
       <ul id="todo-list">
         <li>
           <span>Sample todo</span>
@@ -606,24 +606,24 @@ export async function action({ request }) {
   const formData = await request.formData();
   const task = formData.get('task');
   const id = Date.now();
-  
+
   // Return HTML fragment using JSX
   const html = await (
     <li>
       <span>{task}</span>
-      <button 
-        fx-action={`/api/todos/${id}`} 
-        fx-method="delete" 
-        fx-target="closest li" 
+      <button
+        fx-action={`/api/todos/${id}`}
+        fx-method="delete"
+        fx-target="closest li"
         fx-swap="outerHTML"
       >
         Delete
       </button>
     </li>
   ).toPromise();
-  
-  return new Response(html, { 
-    headers: { 'Content-Type': 'text/html' } 
+
+  return new Response(html, {
+    headers: { 'Content-Type': 'text/html' }
   });
 }
 ```
@@ -710,6 +710,72 @@ export const loader = withAuth(async ({ request }) => {
 3. **Cache responses** - Use Cloudflare's cache API for static content
 4. **Minimize JavaScript** - Server-render as much as possible
 5. **Use fixi.js** - Add interactivity without heavy JavaScript frameworks
+
+## Vite plugin Tips
+
+A plugin for auto-generating routes on build and updates, and also fixing the import.meta.url references in the build output.
+
+```tsx
+import type { PluginOption } from "vite";
+import { generate } from "@mewhhaha/squarehole/fs-routes";
+import path from "node:path";
+
+export interface SquareholePluginOptions {
+  /**
+   * The folder containing the route files (e.g., "./app")
+   */
+  appFolder?: string;
+  /**
+   * Whether to fix import.meta.url references in the build output
+   * @default true
+   */
+  fixImportMeta?: boolean;
+}
+
+/**
+ * Combined Vite plugin for @mewhhaha/squarehole that:
+ * - Watches for route file changes and regenerates routes
+ * - Fixes import.meta.url references in the build output
+ */
+export const squarehole = (
+  options: SquareholePluginOptions = {},
+): PluginOption => {
+  const { appFolder = "./app", fixImportMeta = true } = options;
+
+  return {
+    name: "vite-plugin-squarehole",
+
+    // Development: Watch for route changes
+    configureServer(server) {
+      // Generate routes on server start
+      generate(appFolder);
+
+      // Watch for file changes and regenerate routes
+      server.watcher.on("all", (event, file) => {
+        // Skip change events (only care about add/unlink)
+        if (event === "change") return;
+
+        // Check if the file is in the app folder
+        const resolvedAppPath = path.resolve(appFolder);
+        const resolvedFilePath = path.resolve(file);
+
+        if (resolvedFilePath.startsWith(resolvedAppPath)) {
+          generate(appFolder);
+        }
+      });
+    },
+
+    // Build: Fix import.meta.url references
+    renderChunk(code) {
+      if (!fixImportMeta) return code;
+
+      // Replace import.meta.url with a static string
+      // This prevents runtime errors when import.meta.url is undefined
+      return code.replaceAll(/import\.meta\.url/g, '"file://"');
+    },
+  };
+};
+```
 
 ## Contributing
 

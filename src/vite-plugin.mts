@@ -1,5 +1,5 @@
 import type { PluginOption } from "vite";
-import { generate } from "./fs-routes/js.mts";
+import { generate } from "@mewhhaha/squarehole/fs-routes";
 import path from "node:path";
 
 export interface SquareholePluginOptions {

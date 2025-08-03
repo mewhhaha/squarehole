@@ -8,7 +8,6 @@
     "./fs-routes": "./src/fs-routes/js.mts",
     "./types": "./src/types.mts",
     "./jsx-runtime": "./src/runtime/jsx-runtime.mts",
-    "./jsx-dev-runtime": "./src/runtime/jsx-dev-runtime.mts",
-    "./vite-plugin": "./src/vite-plugin.mts"
+    "./jsx-dev-runtime": "./src/runtime/jsx-dev-runtime.mts"
   }
 }
