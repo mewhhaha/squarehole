@@ -27,8 +27,7 @@
  * ```
  */
 
-import type { JSX } from "@mewhhaha/squarehole";
-import { into } from "@mewhhaha/squarehole/jsx-runtime";
+import { type JSX, into } from "./jsx-runtime.mts";
 
 const suspended = new Map<string, Promise<[id: string, html: string]>>();
 

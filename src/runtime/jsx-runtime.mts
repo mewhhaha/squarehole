@@ -1,9 +1,9 @@
 /**
  * @module
- * 
+ *
  * Custom JSX runtime for Squarehole - a zero-dependency, streaming-first implementation.
  * Provides automatic HTML escaping and support for async components.
- * 
+ *
  * @example
  * ```tsx
  * // Configure TypeScript to use this runtime
@@ -14,7 +14,7 @@
  *     "jsxImportSource": "@mewhhaha/squarehole"
  *   }
  * }
- * 
+ *
  * // Then write JSX as normal
  * const Component = () => <div>Hello World</div>;
  * ```
@@ -26,6 +26,7 @@ import type { JSX } from "./typed.mts";
 export type * from "./typed.mts";
 export { type JSX } from "./jsx.mts";
 export { into };
+export * from "./suspense.tsx";
 
 /**
  * Fragment component for grouping multiple elements without a wrapper.
@@ -52,7 +53,7 @@ const voidElements = new Set([
 
 /**
  * Core JSX factory function that creates HTML elements or calls component functions.
- * 
+ *
  * @param tag - HTML tag name or component function
  * @param props - Element properties and children
  * @returns Html instance for streaming
@@ -67,12 +68,17 @@ export function jsx(
 
   let attrs = "";
   let dangerousHtml: string | undefined;
-  
+
   for (const key in props) {
     let value = props[key];
 
     // Handle dangerouslySetInnerHTML
-    if (key === "dangerouslySetInnerHTML" && typeof value === "object" && value !== null && "__html" in value) {
+    if (
+      key === "dangerouslySetInnerHTML" &&
+      typeof value === "object" &&
+      value !== null &&
+      "__html" in value
+    ) {
       dangerousHtml = value.__html;
       continue;
     }
@@ -145,7 +151,7 @@ export function jsx(
 
 /**
  * Escapes HTML special characters to prevent XSS attacks.
- * 
+ *
  * @param input - String to escape
  * @returns Escaped string safe for HTML output
  */
@@ -187,7 +193,7 @@ const sanitize = (value: any) => {
 
 /**
  * JSX factory for multiple children (same as jsx in this implementation).
- * 
+ *
  * @param tag - HTML tag name or component function
  * @param props - Element properties and children
  * @returns JSX element

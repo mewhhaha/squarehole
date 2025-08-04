@@ -1,6 +1,6 @@
 {
   "name": "@mewhhaha/squarehole",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "type": "module",
   "description": "",
   "bin": {
@@ -10,10 +10,6 @@
     ".": {
       "import": "./src/router.mts",
       "types": "./src/router.mts"
-    },
-    "./components": {
-      "import": "./src/suspense.tsx",
-      "types": "./src/suspense.tsx"
     },
     "./fs-routes": {
       "import": "./src/fs-routes/js.mts",
