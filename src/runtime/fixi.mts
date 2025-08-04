@@ -1,3 +1,7 @@
+/**
+ * Event types supported by the Fixi framework.
+ * @internal
+ */
 export interface FixiEvents {
   "fx:init": Event;
   "fx:inited": Event;
@@ -10,6 +14,10 @@ export interface FixiEvents {
   "fx:swapped": Event;
 }
 
+/**
+ * HTML attributes for Fixi framework functionality.
+ * @internal
+ */
 export interface FixiAttributes {
   "fx-action"?: string;
   "fx-method"?: "GET" | "POST" | "DELETE" | "PUT" | "PATCH";
@@ -26,8 +34,16 @@ export interface FixiAttributes {
     | ({} & string);
 }
 
+/**
+ * Extends HTMLElement with Fixi attributes.
+ * @internal
+ */
 export interface HTMLElement extends FixiAttributes {}
 
+/**
+ * Global event map for Fixi framework events.
+ * @internal
+ */
 export interface GlobalEventMap {
   "fx:init": Event;
   "fx:inited": Event;

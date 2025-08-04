@@ -1,6 +1,9 @@
 import type { Html } from "./node.mts";
 import type { FixiAttributes } from "./fixi.mts";
 
+/**
+ * JSX namespace containing type definitions for JSX elements and attributes.
+ */
 export namespace JSX {
   interface AriaAttributes {
     // ARIA attributes

@@ -2,6 +2,15 @@ const segments = (a: string) => {
   return a.split(unescapedDotRegex);
 };
 
+/**
+ * Sorts routes by specificity for proper route matching order.
+ * More specific routes (with fewer parameters) come before less specific ones.
+ * 
+ * @param a - First route path to compare
+ * @param b - Second route path to compare
+ * @returns Negative if a is more specific, positive if b is more specific, 0 if equal
+ * @internal
+ */
 export const bySpecificity = (a: string, b: string): number => {
   const aSegments = segments(a);
   const bSegments = segments(b);

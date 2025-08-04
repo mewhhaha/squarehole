@@ -1,10 +1,22 @@
 import type { JSX } from "./jsx.mts";
 
+/**
+ * Internal symbol for streaming state.
+ * @internal
+ */
 export const S: unique symbol = Symbol();
+
+/**
+ * Internal symbol for Html type identification.
+ * @internal
+ */
 export const N: unique symbol = Symbol();
 
 const encoder = new TextEncoder();
 
+/**
+ * Html type for streaming HTML content with async generation support.
+ */
 export type Html = {
   [N]: true;
   text: AsyncGenerator<string>;
@@ -37,6 +49,12 @@ function toReadableStream(this: Html): ReadableStream<Uint8Array> {
   });
 }
 
+/**
+ * Converts various inputs into an Html instance for streaming.
+ * 
+ * @param text - String, async generator, or promise to convert
+ * @returns Html instance with streaming capabilities
+ */
 export const into = (
   text: string | AsyncGenerator<string> | Promise<string | JSX.Element>,
 ): Html => {
@@ -67,6 +85,12 @@ export const into = (
   };
 };
 
+/**
+ * Type guard to check if a value is an Html instance.
+ * 
+ * @param child - Value to check
+ * @returns True if the value is Html
+ */
 export const isHtml = (child: unknown): child is Html => {
   return (
     typeof child === "object" &&
