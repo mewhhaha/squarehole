@@ -1,6 +1,6 @@
 {
   "name": "@mewhhaha/squarehole",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "license": "MIT",
   "description": "TypeScript web router designed exclusively for Cloudflare Workers with file-system routing and streaming JSX",
   "repository": "https://github.com/mewhhaha/squarehole",
