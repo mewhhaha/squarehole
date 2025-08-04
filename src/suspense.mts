@@ -6,7 +6,7 @@
  *
  * @example
  * ```tsx
- * import { Suspense, Resolve } from "@mewhhaha/squarehole/components";
+ * import { Suspense, Resolve } from "@mewhhaha/squarehole/suspense";
  *
  * export default function Layout({ children }) {
  *   return (
@@ -27,7 +27,7 @@
  * ```
  */
 
-import { type JSX, into } from "./runtime/jsx-runtime.mts";
+import { type JSX, jsx, Fragment, into } from "./runtime/jsx-runtime.mts";
 
 const suspended = new Map<string, Promise<[id: string, html: string]>>();
 
@@ -63,11 +63,7 @@ export const Suspense = ({
 
   suspended.set(id, promise);
 
-  return (
-    <As id={id} {...props}>
-      {fallback}
-    </As>
-  );
+  return jsx(As, { id, ...props, children: fallback });
 };
 
 type ResolveProps = {
@@ -84,7 +80,7 @@ type ResolveProps = {
  */
 export const Resolve = ({ nonce }: ResolveProps): JSX.Element => {
   if (suspended.size === 0) {
-    return <></>;
+    return jsx(Fragment, {});
   }
 
   return into(

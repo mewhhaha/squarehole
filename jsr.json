@@ -1,6 +1,6 @@
 {
   "name": "@mewhhaha/squarehole",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "license": "MIT",
   "description": "TypeScript web router designed exclusively for Cloudflare Workers with file-system routing and streaming JSX",
   "repository": "https://github.com/mewhhaha/squarehole",
@@ -13,7 +13,7 @@
     "./types": "./src/types.mts",
     "./jsx-runtime": "./src/runtime/jsx-runtime.mts",
     "./jsx-dev-runtime": "./src/runtime/jsx-dev-runtime.mts",
-    "./suspense": "./src/suspense.tsx"
+    "./suspense": "./src/suspense.mts"
   },
   "runtimes": {
     "cloudflare": true,
