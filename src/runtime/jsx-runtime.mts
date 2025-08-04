@@ -1,3 +1,25 @@
+/**
+ * @module
+ * 
+ * Custom JSX runtime for Squarehole - a zero-dependency, streaming-first implementation.
+ * Provides automatic HTML escaping and support for async components.
+ * 
+ * @example
+ * ```tsx
+ * // Configure TypeScript to use this runtime
+ * // tsconfig.json:
+ * {
+ *   "compilerOptions": {
+ *     "jsx": "react-jsx",
+ *     "jsxImportSource": "@mewhhaha/squarehole"
+ *   }
+ * }
+ * 
+ * // Then write JSX as normal
+ * const Component = () => <div>Hello World</div>;
+ * ```
+ */
+
 import { into, isHtml, type Html } from "./node.mts";
 import "./typed.mts";
 import type { JSX } from "./typed.mts";
@@ -5,6 +27,9 @@ export type * from "./typed.mts";
 export { type JSX } from "./jsx.mts";
 export { into };
 
+/**
+ * Fragment component for grouping multiple elements without a wrapper.
+ */
 export const Fragment = (props: any): any => jsx("", props);
 
 // Void elements are self-closing and shouldn't have a closing tag
@@ -25,6 +50,13 @@ const voidElements = new Set([
   "wbr",
 ]);
 
+/**
+ * Core JSX factory function that creates HTML elements or calls component functions.
+ * 
+ * @param tag - HTML tag name or component function
+ * @param props - Element properties and children
+ * @returns Html instance for streaming
+ */
 export function jsx(
   tag: string | Function,
   { children, ...props }: { children?: unknown } & Record<string, any>,
@@ -111,6 +143,12 @@ export function jsx(
   return into(generator());
 }
 
+/**
+ * Escapes HTML special characters to prevent XSS attacks.
+ * 
+ * @param input - String to escape
+ * @returns Escaped string safe for HTML output
+ */
 export function escapeHtml(input: string): string {
   return input.replaceAll(/[&<>"']/g, (char) => {
     switch (char) {
@@ -147,6 +185,13 @@ const sanitize = (value: any) => {
   }
 };
 
+/**
+ * JSX factory for multiple children (same as jsx in this implementation).
+ * 
+ * @param tag - HTML tag name or component function
+ * @param props - Element properties and children
+ * @returns JSX element
+ */
 export function jsxs(tag: any, props: any): JSX.Element {
   return jsx(tag, props);
 }

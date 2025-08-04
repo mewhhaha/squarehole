@@ -4,6 +4,12 @@ import { mkdir, readdir, writeFile, rm } from "node:fs/promises";
 const unescapedDotRegex = /(?<!\[)\.(?![^[]*\])/g;
 const tsRegex = /\.(m)?ts(x)?$/;
 
+/**
+ * Generates TypeScript type definitions for route parameters.
+ * 
+ * @param appFolder - Path to the application folder containing the routes directory
+ * @internal
+ */
 export const generateTypes = async (appFolder: string): Promise<void> => {
   const routesFolder = path.join(appFolder, "routes");
 

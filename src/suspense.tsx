@@ -1,3 +1,32 @@
+/**
+ * @module
+ * 
+ * Suspense components for progressive rendering in Squarehole applications.
+ * Provides React-like Suspense functionality for streaming HTML responses.
+ * 
+ * @example
+ * ```tsx
+ * import { Suspense, Resolve } from "@mewhhaha/squarehole/components";
+ * 
+ * export default function Layout({ children }) {
+ *   return (
+ *     <html>
+ *       <body>
+ *         <Suspense fallback={<div>Loading...</div>}>
+ *           {async () => {
+ *             const data = await fetchData();
+ *             return <div>{data}</div>;
+ *           }}
+ *         </Suspense>
+ *         {children}
+ *         <Resolve />
+ *       </body>
+ *     </html>
+ *   );
+ * }
+ * ```
+ */
+
 import type { JSX } from "./runtime/jsx.mts";
 import { into } from "./runtime/node.mts";
 
@@ -9,6 +38,15 @@ type SuspenseProps<AS extends keyof JSX.IntrinsicElements = "div"> = {
   children: JSX.Element | (() => Promise<JSX.Element>);
 } & Omit<JSX.IntrinsicElements[AS], "children">;
 
+/**
+ * Suspense component that renders a fallback while children are loading.
+ * 
+ * @param props - Component props
+ * @param props.fallback - JSX to render while children are loading
+ * @param props.children - JSX element or async function returning JSX
+ * @param props.as - HTML element to wrap content (default: "div")
+ * @returns JSX element with suspense boundary
+ */
 export const Suspense = ({
   fallback,
   as: As = "div",
@@ -37,7 +75,14 @@ type ResolveProps = {
   nonce?: string;
 };
 
-/** Where the templates and the custom elements for swapping the content are defined. */
+/**
+ * Resolve component that injects the necessary scripts and templates for Suspense to work.
+ * Must be placed after all Suspense components in the document.
+ * 
+ * @param props - Component props
+ * @param props.nonce - Optional nonce for Content Security Policy
+ * @returns JSX element with scripts and templates for progressive rendering
+ */
 export const Resolve = ({ nonce }: ResolveProps): JSX.Element => {
   if (suspended.size === 0) {
     return <></>;

@@ -1,6 +1,32 @@
+/**
+ * @module
+ * 
+ * TypeScript utility types for Squarehole applications.
+ * Provides type inference helpers for components, loaders, actions, and headers.
+ * 
+ * @example
+ * ```typescript
+ * import type { InferComponentProps, InferLoaderArgs } from "@mewhhaha/squarehole/types";
+ * 
+ * // Infer component props from a module
+ * type Props = InferComponentProps<typeof import("./route.tsx")>;
+ * 
+ * // Type-safe loader arguments
+ * export const loader = (args: InferLoaderArgs<{ id: string }>) => {
+ *   const userId = args.params.id; // typed as string
+ *   return { user: await getUser(userId) };
+ * };
+ * ```
+ */
+
 import type { Env } from "./router.mjs";
 import { type JSX } from "./runtime/jsx.mjs";
 
+/**
+ * Infers the props type for a component based on its module exports.
+ * 
+ * @typeParam module - The module type containing loader and default exports
+ */
 export type InferComponentProps<module> = {
   children?: JSX.Element;
   loaderData: module extends {
@@ -10,18 +36,34 @@ export type InferComponentProps<module> = {
     : undefined;
 };
 
+/**
+ * Infers the argument type for loader functions with typed route parameters.
+ * 
+ * @typeParam params - Route parameters as a Record<string, string>
+ */
 export type InferLoaderArgs<params extends Record<string, string>> = {
   request: Request;
   params: params;
   context: [Env, ExecutionContext];
 };
 
+/**
+ * Infers the argument type for action functions with typed route parameters.
+ * 
+ * @typeParam params - Route parameters as a Record<string, string>
+ */
 export type InferActionArgs<params extends Record<string, string>> = {
   request: Request;
   params: params;
   context: [Env, ExecutionContext];
 };
 
+/**
+ * Infers the type for headers functions with typed parameters and loader data.
+ * 
+ * @typeParam params - Route parameters as a Record<string, string>
+ * @typeParam module - The module type containing the loader export
+ */
 export type InferHeadersFunction<
   params extends Record<string, string>,
   module,

@@ -1,26 +1,78 @@
+/**
+ * @module
+ * 
+ * Core router module for Squarehole - a TypeScript web router designed exclusively for Cloudflare Workers.
+ * 
+ * @example
+ * ```typescript
+ * import { Router } from "@mewhhaha/squarehole";
+ * 
+ * const routes = [
+ *   [new URLPattern({ pathname: "/" }), [{ id: "home", mod: { default: () => <h1>Home</h1> } }]],
+ *   [new URLPattern({ pathname: "/about" }), [{ id: "about", mod: { default: () => <h1>About</h1> } }]],
+ * ];
+ * 
+ * const router = Router(routes);
+ * 
+ * export default {
+ *   fetch: (request, env, ctx) => router.handle(request, env, ctx),
+ * };
+ * ```
+ */
+
 import { type JSX } from "./runtime/jsx.mjs";
 import { into, isHtml, type Html } from "./runtime/node.mts";
 
 export type { Html } from "./runtime/node.mts";
 export type { JSX } from "./runtime/jsx.mts";
 
+/**
+ * Renders an Html value to a string.
+ * 
+ * @param value - The Html value to render
+ * @returns The rendered HTML string
+ */
 export const render = (value: Html = into("")): string => {
   return value.toString();
 };
 
+/**
+ * Environment bindings interface. Extend this interface to add your Cloudflare Workers bindings.
+ */
 export interface Env {}
 
+/**
+ * Context object passed to loaders, actions, and headers functions.
+ */
 export interface ctx {
+  /** The incoming request */
   request: Request;
+  /** URL parameters extracted from the route pattern */
   params: Record<string, string>;
+  /** Cloudflare Workers context: [env, executionContext] */
   context: [Env, ExecutionContext];
 }
 
+/**
+ * Loader function for GET requests. Fetches data that will be passed to the component.
+ */
 export type loader = (params: any) => any;
+
+/**
+ * Action function for non-GET requests (POST, PUT, DELETE, etc.).
+ */
 export type action = (params: any) => any;
+
+/**
+ * Component renderer function that returns JSX.
+ */
 export type renderer = (
   props: any,
 ) => JSX.Element | Promise<JSX.Element | string>;
+
+/**
+ * Headers function to set response headers based on request context and loader data.
+ */
 export type headers = (
   params: ctx & {
     loaderData: any | never;
@@ -30,22 +82,51 @@ export type headers = (
   | Record<string, string | undefined | null>
   | Headers;
 
+/**
+ * Route module that can export loader, action, default component, and headers.
+ */
 export type mod = {
+  /** Data loader for GET requests */
   loader?: loader;
+  /** Action handler for non-GET requests */
   action?: action;
+  /** Default component to render */
   default?: renderer;
+  /** Headers to set on the response */
   headers?: headers;
 };
 
+/**
+ * Fragment represents a piece of a route with its associated module.
+ */
 export type fragment = { id: string; mod: mod; params?: string[] };
 
-// Route is now just [path, regex, fragments]
+/**
+ * Route tuple containing a URLPattern and its associated fragments.
+ */
 export type route = [pattern: URLPattern, fragments: fragment[]];
 
+/**
+ * Router interface with a handle method for processing requests.
+ */
 export type router = {
+  /** Handles incoming requests and returns a Response */
   handle: (request: Request, ...args: ctx["context"]) => Promise<Response>;
 };
 
+/**
+ * Creates a router instance from an array of routes.
+ * 
+ * @param routes - Array of route tuples
+ * @returns A router instance with a handle method
+ * 
+ * @example
+ * ```typescript
+ * const router = Router([
+ *   [new URLPattern({ pathname: "/users/:id" }), fragments]
+ * ]);
+ * ```
+ */
 export const Router = (routes: route[]): router => {
   const handle = async (
     request: Request,

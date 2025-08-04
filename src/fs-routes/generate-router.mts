@@ -48,6 +48,12 @@ const generatePatternString = (routePath: string): string => {
   return pattern;
 };
 
+/**
+ * Generates a router file from the file-system route structure.
+ * 
+ * @param appFolder - Path to the application folder containing the routes directory
+ * @internal
+ */
 export const generateRouter = async (appFolder: string): Promise<void> => {
   const routesFolder = path.join(appFolder, "routes");
 
