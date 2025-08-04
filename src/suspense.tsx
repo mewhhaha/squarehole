@@ -27,7 +27,7 @@
  * ```
  */
 
-import { type JSX, into } from "./jsx-runtime.mts";
+import { type JSX, into } from "./runtime/jsx-runtime.mts";
 
 const suspended = new Map<string, Promise<[id: string, html: string]>>();
 
