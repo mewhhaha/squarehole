@@ -9,7 +9,7 @@ const getStore = (): Store | undefined => {
   return storage.getStore();
 };
 
-const pushValue = <T,>(key: symbol, value: T): (() => void) => {
+function pushValue<T>(key: symbol, value: T): () => void {
   const store = getStore();
   if (!store) {
     return () => {};
@@ -29,7 +29,7 @@ const pushValue = <T,>(key: symbol, value: T): (() => void) => {
       store.delete(key);
     }
   };
-};
+}
 
 const isPromise = (value: unknown): value is Promise<unknown> => {
   return (
@@ -39,13 +39,13 @@ const isPromise = (value: unknown): value is Promise<unknown> => {
   );
 };
 
-export const runWithContextStore = <T,>(fn: () => T): T => {
+export function runWithContextStore<T>(fn: () => T): T {
   let result!: T;
   storage.run(new Map(), () => {
     result = fn();
   });
   return result;
-};
+}
 
 export type CreatedContext<T> = {
   Provider: (props: { value: T; children: JSX.Element }) => JSX.Element;
@@ -53,7 +53,7 @@ export type CreatedContext<T> = {
   withValue: <R>(value: T, fn: () => R) => R;
 };
 
-export const createContext = <T,>(defaultValue: T): CreatedContext<T> => {
+export function createContext<T>(defaultValue: T): CreatedContext<T> {
   const key = Symbol("squarehole.context");
 
   const Provider = ({
@@ -96,7 +96,7 @@ export const createContext = <T,>(defaultValue: T): CreatedContext<T> => {
     return stack[stack.length - 1];
   };
 
-  const withValue = <R,>(value: T, fn: () => R): R => {
+  function withValue<R>(value: T, fn: () => R): R {
     const release = pushValue(key, value);
     try {
       const result = fn();
@@ -109,8 +109,8 @@ export const createContext = <T,>(defaultValue: T): CreatedContext<T> => {
       release();
       throw error;
     }
-  };
+  }
 
   const api: CreatedContext<T> = { Provider, use, withValue };
   return api;
-};
+}

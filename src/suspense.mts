@@ -39,9 +39,9 @@ const SuspenseRegistryContext =
  * @internal
  * Runs the provided function with a fresh suspense registry value.
  */
-export const withSuspenseContext = <T,>(fn: () => T): T => {
+export function withSuspenseContext<T>(fn: () => T): T {
   return SuspenseRegistryContext.withValue(new Map(), fn);
-};
+}
 
 const getRegistry = (): SuspenseRegistry | undefined => {
   return SuspenseRegistryContext.use();
