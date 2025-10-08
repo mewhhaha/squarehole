@@ -27,9 +27,25 @@
  * ```
  */
 
+import { createContext } from "./context.mts";
 import { type JSX, jsx, Fragment, into } from "./runtime/jsx-runtime.mts";
 
-const suspended = new Map<string, Promise<[id: string, html: string]>>();
+type SuspenseRegistry = Map<string, Promise<[id: string, html: string]>>;
+
+const SuspenseRegistryContext =
+  createContext<SuspenseRegistry | undefined>(undefined);
+
+/**
+ * @internal
+ * Runs the provided function with a fresh suspense registry value.
+ */
+export const withSuspenseContext = <T>(fn: () => T): T => {
+  return SuspenseRegistryContext.withValue(new Map(), fn);
+};
+
+const getRegistry = (): SuspenseRegistry | undefined => {
+  return SuspenseRegistryContext.use();
+};
 
 type SuspenseProps<AS extends keyof JSX.IntrinsicElements = "div"> = {
   as?: AS;
@@ -52,6 +68,12 @@ export const Suspense = ({
   children,
   ...props
 }: SuspenseProps): JSX.Element => {
+  const registry = getRegistry();
+  if (!registry) {
+    const content = typeof children === "function" ? children() : children;
+    return jsx(As, { ...props, children: content });
+  }
+
   const id = `suspense-${crypto.randomUUID()}`;
 
   let promise: Promise<[id: string, html: string]> | undefined;
@@ -61,7 +83,7 @@ export const Suspense = ({
     promise = (async () => [id, await (await children).toPromise()])();
   }
 
-  suspended.set(id, promise);
+  registry.set(id, promise);
 
   return jsx(As, { id, ...props, children: fallback });
 };
@@ -79,7 +101,8 @@ type ResolveProps = {
  * @returns JSX element with scripts and templates for progressive rendering
  */
 export const Resolve = ({ nonce }: ResolveProps): JSX.Element => {
-  if (suspended.size === 0) {
+  const registry = getRegistry();
+  if (!registry || registry.size === 0) {
     return jsx(Fragment, {});
   }
 
@@ -108,10 +131,10 @@ customElements.define('resolved-data', ResolvedData);
 </script>
 `;
 
-      while (suspended.size > 0) {
+      while (registry.size > 0) {
         const templateId = crypto.randomUUID();
-        const [id, element] = await Promise.race(suspended.values());
-        suspended.delete(id);
+        const [id, element] = await Promise.race(registry.values());
+        registry.delete(id);
         yield* `
 <template id="${templateId}">${element}</template>
 <resolved-data to="${id}" from="${templateId}">

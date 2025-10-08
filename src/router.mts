@@ -22,6 +22,8 @@
 
 import { type JSX } from "./runtime/jsx.mjs";
 import { into, isHtml, type Html } from "./runtime/node.mts";
+import { withSuspenseContext } from "./suspense.mts";
+import { runWithContextStore } from "./context.mts";
 
 export type { Html } from "./runtime/node.mts";
 export type { JSX } from "./runtime/jsx.mts";
@@ -128,58 +130,60 @@ export type router = {
  * ```
  */
 export const Router = (routes: route[]): router => {
-  const handle = async (
+  const handle = (
     request: Request,
     ...args: ctx["context"]
   ): Promise<Response> => {
-    const urlStr = request.url;
-    let fragments: fragment[] | undefined;
-    let params: Record<string, string> | undefined;
-    for (const [pattern, frags] of routes) {
-      const match = pattern.exec(urlStr);
-      if (match) {
-        fragments = frags;
-        params = match.pathname.groups;
-        break;
+    return runWithContextStore(async () => {
+      const urlStr = request.url;
+      let fragments: fragment[] | undefined;
+      let params: Record<string, string> | undefined;
+      for (const [pattern, frags] of routes) {
+        const match = pattern.exec(urlStr);
+        if (match) {
+          fragments = frags;
+          params = match.pathname.groups;
+          break;
+        }
       }
-    }
-    if (!fragments || !params) {
-      return new Response(null, { status: 404 });
-    }
-
-    if (request.headers.has("fx-request")) {
-      fragments = fragments.slice(1);
-    }
-
-    const ctx = { request, params, context: args };
-
-    try {
-      const leaf = fragments[fragments.length - 1]?.mod;
-
-      if (request.method === "GET" && leaf?.default) {
-        return await routeResponse(fragments, ctx);
+      if (!fragments || !params) {
+        return new Response(null, { status: 404 });
       }
 
-      if (request.method === "GET" && leaf?.loader) {
-        return await dataResponse(leaf.loader, ctx);
+      if (request.headers.has("fx-request")) {
+        fragments = fragments.slice(1);
       }
 
-      if (request.method !== "GET" && leaf?.action) {
-        return await dataResponse(leaf.action, ctx);
-      }
+      const ctx = { request, params, context: args };
 
-      return new Response(null, { status: 404 });
-    } catch (e) {
-      if (e instanceof Response) {
-        return e;
-      }
+      try {
+        const leaf = fragments[fragments.length - 1]?.mod;
 
-      if (e instanceof Error) {
-        console.error(e.message);
-      }
+        if (request.method === "GET" && leaf?.default) {
+          return routeResponse(fragments, ctx);
+        }
 
-      return new Response(null, { status: 500 });
-    }
+        if (request.method === "GET" && leaf?.loader) {
+          return dataResponse(leaf.loader, ctx);
+        }
+
+        if (request.method !== "GET" && leaf?.action) {
+          return dataResponse(leaf.action, ctx);
+        }
+
+        return new Response(null, { status: 404 });
+      } catch (e) {
+        if (e instanceof Response) {
+          return e;
+        }
+
+        if (e instanceof Error) {
+          console.error(e.message);
+        }
+
+        return new Response(null, { status: 500 });
+      }
+    });
   };
 
   return {
@@ -197,7 +201,14 @@ const dataResponse = async (f: action | loader, ctx: ctx) => {
 
 const routeResponse = async (fragments: fragment[], ctx: ctx) => {
   const loaders = await Promise.all(
-    fragments.map((fragment) => fragment.mod.loader?.(ctx)),
+    fragments.map(async (fragment) => {
+      if (!fragment.mod.loader) return undefined;
+      const result = await fragment.mod.loader(ctx);
+      if (result instanceof Response) {
+        throw result;
+      }
+      return result;
+    }),
   );
 
   const init = new Headers({
@@ -208,17 +219,25 @@ const routeResponse = async (fragments: fragment[], ctx: ctx) => {
   const stream = new TransformStream();
   const writer = stream.writable.getWriter();
 
-  const node = fragments.reduceRight((acc, frag, index) => {
-    const { mod } = frag;
-    const Component = mod.default;
-    const loaderData = loaders[index];
-    const res = Component ? Component({ loaderData, children: acc }) : acc;
+  const node = await withSuspenseContext(async () => {
+    let acc = into("");
+    for (let index = fragments.length - 1; index >= 0; index--) {
+      const { mod } = fragments[index];
+      const Component = mod.default;
+      if (!Component) continue;
 
-    if (isHtml(res)) {
-      return res;
+      const loaderData = loaders[index];
+      const result = await Component({ loaderData, children: acc });
+
+      if (result instanceof Response) {
+        throw result;
+      }
+
+      acc = isHtml(result) ? result : into(result);
     }
-    return into(res);
-  }, into(""));
+
+    return acc;
+  });
 
   const htmlStream = node.toReadableStream();
   const reader = htmlStream.getReader();
@@ -251,7 +270,7 @@ const mergeFragmentHeaders = async (
   headers: Headers,
   ctx: ctx,
   fragments: fragment[],
-  loaders: (Promise<unknown> | undefined)[],
+  loaders: (unknown | undefined)[],
 ) => {
   for (let i = 0; i < fragments.length; i++) {
     const { mod } = fragments[i];

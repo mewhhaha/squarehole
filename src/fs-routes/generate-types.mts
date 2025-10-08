@@ -108,7 +108,7 @@ export const generateTypes = async (appFolder: string): Promise<void> => {
     if (isDirectory) {
       const task = async () => {
         await mkdir(path.join(basePath, file), { recursive: true });
-        writeFile(path.join(basePath, file, `+types.route.d.ts`), template);
+        await writeFile(path.join(basePath, file, `+types.route.d.ts`), template);
       };
       tasks.push(task());
     } else {

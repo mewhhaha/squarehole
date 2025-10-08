@@ -19,6 +19,10 @@
       "import": "./src/suspense.mts",
       "types": "./src/suspense.mts"
     },
+    "./context": {
+      "import": "./src/context.mts",
+      "types": "./src/context.mts"
+    },
     "./types": {
       "import": "./src/types.mts",
       "types": "./src/types.mts"

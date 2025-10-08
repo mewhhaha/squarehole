@@ -24,6 +24,26 @@ pnpm add @mewhhaha/squarehole
 pnpm add -D vite @cloudflare/vite-plugin wrangler
 ```
 
+> **Cloudflare setup:** enable the Workers Node compatibility flag (`nodejs_compat` or at least `nodejs_als`) so AsyncLocalStorage is available.
+
+### Context
+
+Squarehole provides a lightweight context API that mirrors React's ergonomics while using Cloudflare's `AsyncLocalStorage` under the hood.
+
+```tsx
+import { createContext } from "@mewhhaha/squarehole/context";
+
+export const ThemeContext = createContext("light");
+
+export function ThemeProvider({ value, children }) {
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+}
+
+export function useTheme() {
+  return ThemeContext.use();
+}
+```
+
 ## Basic Usage
 
 ### 1. Create your router

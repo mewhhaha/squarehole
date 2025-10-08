@@ -1,5 +1,3 @@
-import type { JSX } from "./jsx.mts";
-
 /**
  * Internal symbol for streaming state.
  * @internal
@@ -55,31 +53,86 @@ function toReadableStream(this: Html): ReadableStream<Uint8Array> {
  * @param text - String, async generator, or promise to convert
  * @returns Html instance with streaming capabilities
  */
-export const into = (
-  text: string | AsyncGenerator<string> | Promise<string | JSX.Element>,
-): Html => {
-  let generator: AsyncGenerator<string>;
+const isAsyncIterable = (value: unknown): value is AsyncIterable<unknown> => {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    Symbol.asyncIterator in (value as Record<symbol, unknown>)
+  );
+};
 
-  if (text instanceof Promise) {
-    generator = (async function* (): AsyncGenerator<string> {
-      const res = await text;
-      if (typeof res === "string") {
-        yield res;
-      } else {
-        yield* res.text;
+const isIterable = (value: unknown): value is Iterable<unknown> => {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    Symbol.iterator in (value as Record<symbol, unknown>)
+  );
+};
+
+const toGenerator = (value: unknown): AsyncGenerator<string> => {
+  return (async function* (): AsyncGenerator<string> {
+    if (value == null || value === false) {
+      return;
+    }
+
+    if (value instanceof Response) {
+      throw value;
+    }
+
+    if (value instanceof Promise) {
+      const resolved = await value;
+      yield* toGenerator(resolved);
+      return;
+    }
+
+    if (isHtml(value)) {
+      yield* value.text;
+      return;
+    }
+
+    if (typeof value === "string") {
+      yield value;
+      return;
+    }
+
+    if (typeof value === "number" || typeof value === "bigint") {
+      yield value.toString();
+      return;
+    }
+
+    if (typeof value === "boolean") {
+      if (value) {
+        yield "true";
       }
-    })();
-  } else if (typeof text === "string") {
-    generator = (async function* (): AsyncGenerator<string> {
-      yield text;
-    })();
-  } else {
-    generator = text;
+      return;
+    }
+
+    if (isAsyncIterable(value)) {
+      for await (const item of value) {
+        yield* toGenerator(item);
+      }
+      return;
+    }
+
+    if (isIterable(value)) {
+      for (const item of value) {
+        yield* toGenerator(item);
+      }
+      return;
+    }
+
+    yield value.toString();
+  })();
+};
+
+export const into = (value: unknown): Html => {
+  if (isHtml(value)) {
+    return value;
   }
 
   return {
     [N]: true,
-    text: generator,
+    text: toGenerator(value),
     toPromise,
     toReadableStream,
   };
