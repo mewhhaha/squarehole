@@ -50,7 +50,7 @@ const generatePatternString = (routePath: string): string => {
 
 /**
  * Generates a router file from the file-system route structure.
- * 
+ *
  * @param appFolder - Path to the application folder containing the routes directory
  * @internal
  */

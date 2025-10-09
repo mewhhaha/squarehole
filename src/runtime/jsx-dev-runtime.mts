@@ -1,9 +1,9 @@
 /**
  * @module
- * 
+ *
  * Development JSX runtime for Squarehole.
  * Re-exports the production runtime functions with development names.
- * 
+ *
  * @example
  * ```tsx
  * // This module is automatically used in development mode

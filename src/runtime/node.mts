@@ -49,7 +49,7 @@ function toReadableStream(this: Html): ReadableStream<Uint8Array> {
 
 /**
  * Converts various inputs into an Html instance for streaming.
- * 
+ *
  * @param text - String, async generator, or promise to convert
  * @returns Html instance with streaming capabilities
  */
@@ -140,7 +140,7 @@ export const into = (value: unknown): Html => {
 
 /**
  * Type guard to check if a value is an Html instance.
- * 
+ *
  * @param child - Value to check
  * @returns True if the value is Html
  */

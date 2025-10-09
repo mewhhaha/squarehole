@@ -36,7 +36,9 @@ import { createContext } from "@mewhhaha/squarehole/context";
 export const ThemeContext = createContext("light");
 
 export function ThemeProvider({ value, children }) {
-  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+  return (
+    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
+  );
 }
 
 export function useTheme() {
@@ -50,14 +52,14 @@ export function useTheme() {
 
 ```typescript
 // src/index.ts
-import { Router } from '@mewhhaha/squarehole';
-import { routes } from './routes';
+import { Router } from "@mewhhaha/squarehole";
+import { routes } from "./routes";
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
     const router = Router(routes);
     return router.handle(request, { env, ctx });
-  }
+  },
 };
 ```
 
@@ -114,7 +116,7 @@ export default function HomePage() {
 ```tsx
 // app/users.tsx
 export async function loader({ request, params, context }) {
-  const users = await context.env.DB.prepare('SELECT * FROM users').all();
+  const users = await context.env.DB.prepare("SELECT * FROM users").all();
   return { users: users.results };
 }
 
@@ -123,7 +125,7 @@ export default function UsersPage({ users }) {
     <div>
       <h1>Users</h1>
       <ul>
-        {users.map(user => (
+        {users.map((user) => (
           <li key={user.id}>{user.name}</li>
         ))}
       </ul>
@@ -139,7 +141,7 @@ export default function UsersPage({ users }) {
 export async function loader({ params }) {
   const post = await getPostBySlug(params.slug);
   if (!post) {
-    throw new Response('Not Found', { status: 404 });
+    throw new Response("Not Found", { status: 404 });
   }
   return { post };
 }
@@ -160,14 +162,16 @@ export default function BlogPost({ post }) {
 // app/contact.tsx
 export async function action({ request, context }) {
   const formData = await request.formData();
-  const email = formData.get('email');
-  const message = formData.get('message');
+  const email = formData.get("email");
+  const message = formData.get("message");
 
   await context.env.DB.prepare(
-    'INSERT INTO messages (email, message) VALUES (?, ?)'
-  ).bind(email, message).run();
+    "INSERT INTO messages (email, message) VALUES (?, ?)",
+  )
+    .bind(email, message)
+    .run();
 
-  return Response.redirect('/thank-you');
+  return Response.redirect("/thank-you");
 }
 
 export default function ContactForm() {
@@ -235,10 +239,10 @@ export async function loader({ request }) {
 
 ```tsx
 // app/dashboard.tsx
-import { Suspense } from '@mewhhaha/squarehole/components';
+import { Suspense } from "@mewhhaha/squarehole/components";
 
 async function SlowData() {
-  const data = await fetch('https://api.slow-endpoint.com/data');
+  const data = await fetch("https://api.slow-endpoint.com/data");
   return <div>{await data.text()}</div>;
 }
 
@@ -259,7 +263,7 @@ export default function Dashboard() {
 ```typescript
 // app/api/hello.ts
 export async function loader({ request }) {
-  return Response.json({ message: 'Hello from API!' });
+  return Response.json({ message: "Hello from API!" });
 }
 
 export async function action({ request }) {
@@ -280,7 +284,7 @@ export async function loader({ request }) {
   // Option 1: Convert to string with toPromise()
   const html = await (
     <ul>
-      {users.map(user => (
+      {users.map((user) => (
         <li>
           <span>{user.name}</span>
           <button fx-action={`/api/users/${user.id}`} fx-method="delete">
@@ -292,7 +296,7 @@ export async function loader({ request }) {
   ).toPromise();
 
   return new Response(html, {
-    headers: { 'Content-Type': 'text/html' }
+    headers: { "Content-Type": "text/html" },
   });
 }
 
@@ -303,7 +307,7 @@ export async function loader({ request }) {
   // Option 2: Stream the response with toReadableStream()
   const stream = (
     <div class="posts">
-      {posts.map(post => (
+      {posts.map((post) => (
         <article>
           <h2>{post.title}</h2>
           <p>{post.excerpt}</p>
@@ -314,12 +318,12 @@ export async function loader({ request }) {
   ).toReadableStream();
 
   return new Response(stream, {
-    headers: { 'Content-Type': 'text/html' }
+    headers: { "Content-Type": "text/html" },
   });
 }
 
 // app/api/comments.tsx
-import { Suspense } from '@mewhhaha/squarehole/components';
+import { Suspense } from "@mewhhaha/squarehole/components";
 
 export async function loader({ request }) {
   // Option 3: Stream with Suspense for async components
@@ -331,7 +335,7 @@ export async function loader({ request }) {
           const comments = await fetchComments();
           return (
             <>
-              {comments.map(comment => (
+              {comments.map((comment) => (
                 <div class="comment">
                   <strong>{comment.author}</strong>
                   <p>{comment.text}</p>
@@ -345,7 +349,7 @@ export async function loader({ request }) {
   ).toReadableStream();
 
   return new Response(stream, {
-    headers: { 'Content-Type': 'text/html' }
+    headers: { "Content-Type": "text/html" },
   });
 }
 ```
@@ -378,11 +382,7 @@ export default function RootLayout({ children }) {
 ```tsx
 // app/document.tsx
 export default function Document({ children, loaderData }) {
-  return (
-    <div id="app">
-      {children}
-    </div>
-  );
+  return <div id="app">{children}</div>;
 }
 ```
 
@@ -441,19 +441,19 @@ my-app/
 
 ```typescript
 // vite.config.ts
-import { defineConfig } from 'vite';
-import { cloudflare } from '@cloudflare/vite-plugin';
-import { squarehole } from '@mewhhaha/squarehole/vite-plugin';
+import { defineConfig } from "vite";
+import { cloudflare } from "@cloudflare/vite-plugin";
+import { squarehole } from "@mewhhaha/squarehole/vite-plugin";
 
 export default defineConfig({
   plugins: [
     cloudflare({
-      viteEnvironment: { name: 'ssr' }
+      viteEnvironment: { name: "ssr" },
     }),
     squarehole(), // Auto-generates routes and fixes import.meta.url
   ],
   build: {
-    target: 'esnext', // Required for Cloudflare Workers
+    target: "esnext", // Required for Cloudflare Workers
   },
 });
 ```
@@ -462,9 +462,9 @@ For optimal Cloudflare Workers performance, we recommend these build settings:
 
 ```typescript
 // vite.config.ts with recommended build options
-import { defineConfig } from 'vite';
-import { cloudflare } from '@cloudflare/vite-plugin';
-import { squarehole } from '@mewhhaha/squarehole/vite-plugin';
+import { defineConfig } from "vite";
+import { cloudflare } from "@cloudflare/vite-plugin";
+import { squarehole } from "@mewhhaha/squarehole/vite-plugin";
 
 export default defineConfig({
   css: {
@@ -472,30 +472,30 @@ export default defineConfig({
   },
   plugins: [
     cloudflare({
-      viteEnvironment: { name: 'ssr' }
+      viteEnvironment: { name: "ssr" },
     }),
     squarehole({
-      appFolder: './app',     // Routes directory (default: './app')
-      fixImportMeta: true,    // Fix import.meta.url (default: true)
+      appFolder: "./app", // Routes directory (default: './app')
+      fixImportMeta: true, // Fix import.meta.url (default: true)
     }),
   ],
   build: {
-    target: 'esnext', // Required for modern JS features in Workers
+    target: "esnext", // Required for modern JS features in Workers
     rollupOptions: {
       experimental: {
         resolveNewUrlToAsset: true, // Enable new URL() asset imports
       },
       resolve: {
-        conditionNames: ['import'], // Prefer ESM exports in packages
+        conditionNames: ["import"], // Prefer ESM exports in packages
       },
       moduleTypes: {
         // Convert images to data URLs for easier deployment
-        '.jpg': 'dataurl',
-        '.jpeg': 'dataurl',
-        '.png': 'dataurl',
-        '.gif': 'dataurl',
-        '.svg': 'dataurl',
-        '.ico': 'dataurl',
+        ".jpg": "dataurl",
+        ".jpeg": "dataurl",
+        ".png": "dataurl",
+        ".gif": "dataurl",
+        ".svg": "dataurl",
+        ".ico": "dataurl",
       },
     },
   },
@@ -586,6 +586,7 @@ export default function RootLayout({ children }) {
 ```
 
 For production, we recommend downloading and vendoring fixi.js:
+
 1. Download `fixi.js` from the [fixi repository](https://github.com/bigskysoftware/fixi)
 2. Place it in your `public/` directory
 3. Reference it as `<script src="/fixi.js"></script>`
@@ -593,6 +594,7 @@ For production, we recommend downloading and vendoring fixi.js:
 ### 2. Use fixi attributes
 
 fixi uses these main attributes:
+
 - `fx-action`: URL for the request
 - `fx-method`: HTTP method (default: GET)
 - `fx-target`: CSS selector for response placement
@@ -604,7 +606,12 @@ fixi uses these main attributes:
 export default function TodoList() {
   return (
     <div>
-      <form fx-action="/api/todos" fx-method="post" fx-target="#todo-list" fx-swap="beforeend">
+      <form
+        fx-action="/api/todos"
+        fx-method="post"
+        fx-target="#todo-list"
+        fx-swap="beforeend"
+      >
         <input type="text" name="task" required />
         <button type="submit">Add Todo</button>
       </form>
@@ -612,7 +619,12 @@ export default function TodoList() {
       <ul id="todo-list">
         <li>
           <span>Sample todo</span>
-          <button fx-action="/api/todos/1" fx-method="delete" fx-target="closest li" fx-swap="outerHTML">
+          <button
+            fx-action="/api/todos/1"
+            fx-method="delete"
+            fx-target="closest li"
+            fx-swap="outerHTML"
+          >
             Delete
           </button>
         </li>
@@ -624,7 +636,7 @@ export default function TodoList() {
 // app/api/todos.tsx
 export async function action({ request }) {
   const formData = await request.formData();
-  const task = formData.get('task');
+  const task = formData.get("task");
   const id = Date.now();
 
   // Return HTML fragment using JSX
@@ -643,7 +655,7 @@ export async function action({ request }) {
   ).toPromise();
 
   return new Response(html, {
-    headers: { 'Content-Type': 'text/html' }
+    headers: { "Content-Type": "text/html" },
   });
 }
 ```
@@ -675,16 +687,16 @@ export async function action({ request }) {
 - **Watches for route changes** and regenerates automatically
 
 ```typescript
-import { squarehole } from '@mewhhaha/squarehole/vite-plugin';
+import { squarehole } from "@mewhhaha/squarehole/vite-plugin";
 
 // Basic usage
-squarehole()
+squarehole();
 
 // With options
 squarehole({
-  appFolder: './app',    // Routes directory (default: './app')
-  fixImportMeta: true,   // Fix import.meta.url (default: true)
-})
+  appFolder: "./app", // Routes directory (default: './app')
+  fixImportMeta: true, // Fix import.meta.url (default: true)
+});
 ```
 
 ### Custom Error Pages
@@ -695,7 +707,7 @@ export default function ErrorPage({ error }) {
   return (
     <div>
       <h1>Error {error.status || 500}</h1>
-      <p>{error.message || 'Something went wrong'}</p>
+      <p>{error.message || "Something went wrong"}</p>
     </div>
   );
 }
@@ -707,16 +719,16 @@ export default function ErrorPage({ error }) {
 // src/middleware.ts
 export function withAuth(handler) {
   return async (args) => {
-    const token = args.request.headers.get('Authorization');
+    const token = args.request.headers.get("Authorization");
     if (!token) {
-      throw new Response('Unauthorized', { status: 401 });
+      throw new Response("Unauthorized", { status: 401 });
     }
     return handler(args);
   };
 }
 
 // app/admin/users.tsx
-import { withAuth } from '@/middleware';
+import { withAuth } from "@/middleware";
 
 export const loader = withAuth(async ({ request }) => {
   return { users: await getUsers() };

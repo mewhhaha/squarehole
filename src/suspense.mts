@@ -32,8 +32,9 @@ import { type JSX, jsx, Fragment, into } from "./runtime/jsx-runtime.mts";
 
 type SuspenseRegistry = Map<string, Promise<[id: string, html: string]>>;
 
-const SuspenseRegistryContext =
-  createContext<SuspenseRegistry | undefined>(undefined);
+const SuspenseRegistryContext = createContext<SuspenseRegistry | undefined>(
+  undefined,
+);
 
 /**
  * @internal

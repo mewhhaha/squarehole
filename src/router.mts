@@ -1,19 +1,19 @@
 /**
  * @module
- * 
+ *
  * Core router module for Squarehole - a TypeScript web router designed exclusively for Cloudflare Workers.
- * 
+ *
  * @example
  * ```typescript
  * import { Router } from "@mewhhaha/squarehole";
- * 
+ *
  * const routes = [
  *   [new URLPattern({ pathname: "/" }), [{ id: "home", mod: { default: () => <h1>Home</h1> } }]],
  *   [new URLPattern({ pathname: "/about" }), [{ id: "about", mod: { default: () => <h1>About</h1> } }]],
  * ];
- * 
+ *
  * const router = Router(routes);
- * 
+ *
  * export default {
  *   fetch: (request, env, ctx) => router.handle(request, env, ctx),
  * };
@@ -30,7 +30,7 @@ export type { JSX } from "./runtime/jsx.mts";
 
 /**
  * Renders an Html value to a string.
- * 
+ *
  * @param value - The Html value to render
  * @returns The rendered HTML string
  */
@@ -118,10 +118,10 @@ export type router = {
 
 /**
  * Creates a router instance from an array of routes.
- * 
+ *
  * @param routes - Array of route tuples
  * @returns A router instance with a handle method
- * 
+ *
  * @example
  * ```typescript
  * const router = Router([

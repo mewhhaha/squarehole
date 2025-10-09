@@ -6,7 +6,7 @@ const tsRegex = /\.(m)?ts(x)?$/;
 
 /**
  * Generates TypeScript type definitions for route parameters.
- * 
+ *
  * @param appFolder - Path to the application folder containing the routes directory
  * @internal
  */
@@ -108,7 +108,10 @@ export const generateTypes = async (appFolder: string): Promise<void> => {
     if (isDirectory) {
       const task = async () => {
         await mkdir(path.join(basePath, file), { recursive: true });
-        await writeFile(path.join(basePath, file, `+types.route.d.ts`), template);
+        await writeFile(
+          path.join(basePath, file, `+types.route.d.ts`),
+          template,
+        );
       };
       tasks.push(task());
     } else {
