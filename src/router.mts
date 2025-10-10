@@ -160,15 +160,15 @@ export const Router = (routes: route[]): router => {
         const leaf = fragments[fragments.length - 1]?.mod;
 
         if (request.method === "GET" && leaf?.default) {
-          return routeResponse(fragments, ctx);
+          return await routeResponse(fragments, ctx);
         }
 
         if (request.method === "GET" && leaf?.loader) {
-          return dataResponse(leaf.loader, ctx);
+          return await dataResponse(leaf.loader, ctx);
         }
 
         if (request.method !== "GET" && leaf?.action) {
-          return dataResponse(leaf.action, ctx);
+          return await dataResponse(leaf.action, ctx);
         }
 
         return new Response(null, { status: 404 });
