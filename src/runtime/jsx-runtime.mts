@@ -21,6 +21,9 @@
  */
 
 import { into, isHtml, type Html } from "./node.mts";
+import { SIGNAL } from "./signal.mts";
+import { define } from "../client.mts";
+import { withComponentFrame } from "./hooks.mts";
 import "./typed.mts";
 import type { JSX } from "./typed.mts";
 export type * from "./typed.mts";
@@ -66,7 +69,7 @@ export function jsx(
   { children, ...props }: { children?: unknown } & Record<string, any>,
 ): Html {
   if (typeof tag === "function") {
-    return tag({ children, ...props });
+    return withComponentFrame(() => tag({ children, ...props }));
   }
 
   let attrs = "";
@@ -74,6 +77,24 @@ export function jsx(
 
   for (const key in props) {
     let value = props[key];
+
+    // Event handler sugar: on={function click(){...}}
+    // Uses the function name as the event type (e.g., "click").
+    if (key === "on" && typeof value === "function") {
+      const name = (value as Function).name?.trim();
+      if (name) {
+        const event = name.toLowerCase();
+        const ref = define(value as any);
+        // Capture enumerable function properties as initial context/args
+        const args = Object.fromEntries(Object.entries(value as any));
+        const payload = { ...(ref as any), a: args };
+        const encoded = btoa(
+          unescape(encodeURIComponent(JSON.stringify(payload))),
+        );
+        attrs += ` data-sh-${event}="${encoded}" `;
+        continue;
+      }
+    }
 
     // Handle dangerouslySetInnerHTML
     if (
@@ -134,7 +155,26 @@ export function jsx(
         }
 
         if (typeof child === "function") {
-          yield* processChild(child());
+          // Treat function children as mini-components for hook scoping
+          yield* into(withComponentFrame(() => child())).text;
+          return;
+        }
+
+        // Auto-render Squarehole signal values as bound text placeholders
+        if (
+          typeof child === "object" &&
+          child !== null &&
+          // Prefer symbol marker, fall back to legacy flag
+          ((child as any)[SIGNAL] === true || (child as any).__sh === "sig")
+        ) {
+          const sig: any = child as any;
+          const id = String(sig.id ?? "");
+          const initial = sig.initial;
+          const encoded = btoa(
+            unescape(encodeURIComponent(JSON.stringify(initial))),
+          );
+          const content = escapeHtml(String(initial));
+          yield `<span data-sh-t="${id}" data-sh-v="${encoded}">${content}</span>`;
           return;
         }
 
