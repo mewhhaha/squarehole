@@ -53,25 +53,40 @@ describe("Client runtime DOM behaviour", () => {
 
     const router = Router([[pattern, fragments]]);
     const { ctx } = makeCtx();
-    const res = await router.handle(new Request("https://example.com/"), {} as Env, ctx);
+    const res = await router.handle(
+      new Request("https://example.com/"),
+      {} as Env,
+      ctx,
+    );
     const html = await res.text();
 
     // Build a DOM and inject HTML
-    const dom = new JSDOM("<!doctype html><html><head></head><body></body></html>", {
-      url: "https://example.com/",
-      runScripts: "dangerously",
-      pretendToBeVisual: true,
-    });
+    const dom = new JSDOM(
+      "<!doctype html><html><head></head><body></body></html>",
+      {
+        url: "https://example.com/",
+        runScripts: "dangerously",
+        pretendToBeVisual: true,
+      },
+    );
     const { window } = dom;
     const doc = window.document;
     doc.body.innerHTML = html.replace(/^<!doctype html>/i, "");
 
     // Stub dynamic import used by client runtime to load function modules
     (window as any).__import = async (spec: string) => {
-      if (!spec.startsWith("/_sh/f/")) throw new Error("Unexpected spec: " + spec);
-      const modRes = await router.handle(new Request("https://example.com" + spec), {} as Env, ctx);
+      if (!spec.startsWith("/_sh/f/"))
+        throw new Error("Unexpected spec: " + spec);
+      const modRes = await router.handle(
+        new Request("https://example.com" + spec),
+        {} as Env,
+        ctx,
+      );
       const code = await modRes.text();
-      const body = code.replace(/^\s*export\s+default\s+/, "return { default: ");
+      const body = code.replace(
+        /^\s*export\s+default\s+/,
+        "return { default: ",
+      );
       const final = body.endsWith(";\n") ? body + "}" : body + "}";
       // eslint-disable-next-line no-new-func
       const factory = new window.Function(final);
@@ -79,7 +94,10 @@ describe("Client runtime DOM behaviour", () => {
     };
 
     // Execute the client script, replacing import() with window.__import
-    const script = extractClientScript(html).replaceAll(/\bimport\s*\(/g, "window.__import(");
+    const script = extractClientScript(html).replaceAll(
+      /\bimport\s*\(/g,
+      "window.__import(",
+    );
     window.eval(script);
 
     // Fire DOMContentLoaded to trigger seed + runMounts
