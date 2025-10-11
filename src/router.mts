@@ -23,7 +23,9 @@
 import { type JSX } from "./runtime/jsx.mjs";
 import { into, isHtml, type Html } from "./runtime/node.mts";
 import { withSuspenseContext } from "./suspense.mts";
+import { serveClientFunction } from "./client-server.mts";
 import { runWithContextStore } from "./context.mts";
+import { runWithHooksStore } from "./runtime/hooks.mts";
 
 export type { Html } from "./runtime/node.mts";
 export type { JSX } from "./runtime/jsx.mts";
@@ -134,8 +136,13 @@ export const Router = (routes: route[]): router => {
     request: Request,
     ...args: ctx["context"]
   ): Promise<Response> => {
-    return runWithContextStore(async () => {
+    return runWithHooksStore(() => runWithContextStore(async () => {
       const urlStr = request.url;
+      const url = new URL(urlStr);
+      // Built-in endpoint for serving small client handler modules
+      if (url.pathname.startsWith("/_sh/f/")) {
+        return serveClientFunction(url.pathname);
+      }
       let fragments: fragment[] | undefined;
       let params: Record<string, string> | undefined;
       for (const [pattern, frags] of routes) {
@@ -183,7 +190,7 @@ export const Router = (routes: route[]): router => {
 
         return new Response(null, { status: 500 });
       }
-    });
+    }));
   };
 
   return {
@@ -251,6 +258,15 @@ const routeResponse = async (fragments: fragment[], ctx: ctx) => {
         const { done, value } = await reader.read();
         if (done) break;
         await writer.write(value);
+      }
+    } catch (e) {
+      if (e instanceof Response) {
+        // A Response was thrown during streaming; we cannot change the
+        // already-started response, so swallow to avoid unhandled rejections.
+        return;
+      }
+      if (e instanceof Error) {
+        console.error(e.message);
       }
     } finally {
       reader.releaseLock();

@@ -258,6 +258,72 @@ export default function Dashboard() {
 }
 ```
 
+### Client Signals
+
+Squarehole includes a tiny client state primitive. Create a signal on the server with `useState(initial)` and render it directly as `{count}`. Attach handlers with `on={function click(){}}`; the handler `this` (and third arg) is a persistent per‑element context initialized from the function’s enumerable properties.
+
+```tsx
+// app/_index.tsx
+import { Client, useState } from "@mewhhaha/squarehole/client";
+
+export default function HomePage() {
+  const count = useState(0);
+  return (
+    <html>
+      <body>
+        {(() => {
+          function click(this: any) { this.count.set((v: number) => v + 1); }
+          (click as any).count = count; // attach server-initialized state to the handler
+          return <button on={click}>{count}</button>;
+        })()}
+        <Client />
+      </body>
+    </html>
+  );
+}
+```
+
+Lifecycle events: provide a single `on` prop with a named function; the function name becomes the event type (e.g., `mount`, `unmount`, `click`, `submit`).
+
+```tsx
+<button on={function submit(){ /* ... */ }} />
+<div on={function mount(){ /* called on DOMContentLoaded */ }} />
+<div on={function unmount(){ /* called when removed from DOM */ }} />
+```
+
+## How Hydration Works
+
+Squarehole doesn’t use comment anchors or a compiler to hydrate. Instead, the server emits small data attributes and a tiny client bootstrap wires everything up on demand.
+
+- Render-time markers
+  - Events: `on={function click(){}}` becomes a `data-sh-click="..."` attribute on the element. The value is Base64‑encoded JSON with:
+    - `t`: type (always `"f"` for inline function)
+    - `i`: stable function id
+    - `a`: initial context object, built from the function’s enumerable properties
+  - Signals: rendering `{count}` inserts a span like `<span data-sh-t="sid" data-sh-v="base64(json(initial))">escapedInitial</span>`.
+
+- Client bootstrap (`<Client />`)
+  - Seeds signals: scans `[data-sh-t]` and stores `id -> value` in a Map. `set(id, next)` updates all matching spans’ `textContent`.
+  - Delegated events: listens for `click`, `input`, `change`, `submit`. On an event, it walks up from the target to find the nearest `data-sh-{type}` attribute.
+  - Payload decoding: decodes and JSON‑parses the Base64 payload with a custom reviver that turns signal objects into tiny proxies `{ get(); set(next) }`.
+  - Per‑element context: stores a stable context object in a Map attached to the element, keyed by the encoded payload. Handlers run as `fn.call(ctx, el, ev, ctx)` so `this === ctx`.
+  - Lazy load: the first time an interaction happens, the function module is dynamically imported from `/_sh/f/<id>.js` and then cached.
+  - Lifecycle: `on={function mount(){}}` runs after `DOMContentLoaded` (emitted as `data-sh-mount`). `on={function unmount(){}}` runs when the element is removed (observed via `MutationObserver`, emitted as `data-sh-unmount`). After unmount, the element’s context for that payload is cleared to avoid leaks.
+
+- Server‑initialized state → client
+  - Define state on the server with `const count = useState(0)` and render `{count}` to seed and bind it.
+  - Attach signals (and other JSON‑serializable values) to your handler function as properties before render: `click.count = count`.
+  - On the client, the JSON reviver restores `click.count` to a proxy with `get()`/`set()` so `this.count.set(v => v + 1)` updates all bound spans.
+
+- Why this design
+  - No codegen or comment nodes; just explicit attributes your elements already own.
+  - Minimal runtime: a few listeners, a signal Map, and on‑demand `import()` for handlers.
+
+- Limitations and tips
+  - Event inference uses the function name (`function click(){}` → `click`). Keep handler names intact if you minify.
+  - Default delegated events are `click`, `input`, `change`, `submit`.
+  - Handler functions must be self‑contained (don’t close over server‑only values). Their source code is shipped to the browser.
+
 ### API Routes
 
 ```typescript
