@@ -9,7 +9,9 @@
   },
   "exports": {
     ".": "./src/router.mts",
+    "./client": "./src/client.mts",
     "./fs-routes": "./src/fs-routes/js.mts",
+    "./context": "./src/context.mts",
     "./types": "./src/types.mts",
     "./jsx-runtime": "./src/runtime/jsx-runtime.mts",
     "./jsx-dev-runtime": "./src/runtime/jsx-dev-runtime.mts",
