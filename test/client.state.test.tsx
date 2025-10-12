@@ -12,7 +12,7 @@ const makeCtx = () => {
 };
 
 describe("Signal auto-binding and inline sugar", () => {
-  it("renders signal child as bound span and encodes signal via on={fn} function property", async () => {
+  it("renders signal child as bound span and encodes signal via function property", async () => {
     const count = useState(5);
     function click(this: any) {
       this.count.set((v: number) => v + this.by);
@@ -28,7 +28,7 @@ describe("Signal auto-binding and inline sugar", () => {
           default: () => (
             <html>
               <body>
-                <button id="btn" on={click}>{count}</button>
+                <button id="btn" onClick={click}>{count}</button>
                 <Client />
               </body>
             </html>
@@ -42,12 +42,12 @@ describe("Signal auto-binding and inline sugar", () => {
     const res = await router.handle(new Request("https://example.com/"), {} as Env, ctx);
     const html = await res.text();
 
-    // Has a data-sh-click payload
-    expect(html).toMatch(/data-sh-click="[^"]+"/);
+    // Has a data-client-click payload
+    expect(html).toMatch(/data-client-click="[^"]+"/);
     // Has bound signal marker with encoded value
-    const tAttr = html.match(/data-sh-t="([^"]+)"/);
+    const tAttr = html.match(/data-client-t="([^"]+)"/);
     expect(tAttr?.[1]).toBe(count.id);
-    const vAttr = html.match(/data-sh-v="([^"]+)"/);
+    const vAttr = html.match(/data-client-v="([^"]+)"/);
     expect(vAttr).toBeTruthy();
     const decoded = JSON.parse(decodeURIComponent(escape(atob(vAttr![1]))));
     expect(decoded).toBe(5);

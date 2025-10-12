@@ -78,22 +78,33 @@ export function jsx(
   for (const key in props) {
     let value = props[key];
 
-    // Event handler sugar: on={function click(){...}}
-    // Uses the function name as the event type (e.g., "click").
-    if (key === "on" && typeof value === "function") {
-      const name = (value as Function).name?.trim();
-      if (name) {
-        const event = name.toLowerCase();
-        const ref = define(value as any);
-        // Capture enumerable function properties as initial context/args
-        const args = Object.fromEntries(Object.entries(value as any));
-        const payload = { ...(ref as any), a: args };
-        const encoded = btoa(
-          unescape(encodeURIComponent(JSON.stringify(payload))),
-        );
-        attrs += ` data-sh-${event}="${encoded}" `;
-        continue;
-      }
+    // Preferred: onX handlers on native elements
+    // Example: onClick={() => ...} => data-client-click="..."
+    if (/^on[A-Z]/.test(key) && typeof value === "function") {
+      const suffix = key.slice(2); // after 'on'
+      const lower = suffix.toLowerCase();
+      const event = lower === "mount" ? "mount" : lower === "unmount" ? "unmount" : lower;
+      const ref = define(value as any);
+      const args = Object.fromEntries(Object.entries(value as any));
+      const payload = { ...(ref as any), a: args };
+      const encoded = btoa(
+        unescape(encodeURIComponent(JSON.stringify(payload))),
+      );
+      attrs += ` data-client-${event}="${encoded}" `;
+      continue;
+    }
+
+    // Attribute binding: allow function-valued props (e.g., class={(el, s) => ...})
+    // Encodes as data-client-attr-<name> for client to compute and update on state changes
+    if (typeof value === "function") {
+      const ref = define(value as any);
+      const args = Object.fromEntries(Object.entries(value as any));
+      const payload = { ...(ref as any), a: args };
+      const encoded = btoa(
+        unescape(encodeURIComponent(JSON.stringify(payload))),
+      );
+      attrs += ` data-client-attr-${key}="${encoded}" `;
+      continue;
     }
 
     // Handle dangerouslySetInnerHTML
@@ -164,8 +175,8 @@ export function jsx(
         if (
           typeof child === "object" &&
           child !== null &&
-          // Prefer symbol marker, fall back to legacy flag
-          ((child as any)[SIGNAL] === true || (child as any).__sh === "sig")
+          // Prefer symbol marker, fall back to internal flag
+          ((child as any)[SIGNAL] === true || (child as any).__client === "sig")
         ) {
           const sig: any = child as any;
           const id = String(sig.id ?? "");
@@ -174,7 +185,7 @@ export function jsx(
             unescape(encodeURIComponent(JSON.stringify(initial))),
           );
           const content = escapeHtml(String(initial));
-          yield `<span data-sh-t="${id}" data-sh-v="${encoded}">${content}</span>`;
+          yield `<span data-client-t="${id}" data-client-v="${encoded}">${content}</span>`;
           return;
         }
 

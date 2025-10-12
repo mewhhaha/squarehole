@@ -83,11 +83,17 @@ app/
 
 ```tsx
 // app/_index.tsx
+import { Client } from "@mewhhaha/squarehole/client";
+
 export default function HomePage() {
+  function hello(el: Element) {
+    (el as HTMLElement).textContent = "Clicked!";
+  }
   return (
     <html>
       <head>
         <title>Welcome to @mewhhaha/squarehole</title>
+        {/* Include fixi for hypermedia-style interactions */}
         <script
           src="https://cdn.jsdelivr.net/gh/bigskysoftware/fixi@0.9.0/fixi.js"
           crossorigin="anonymous"
@@ -98,11 +104,15 @@ export default function HomePage() {
         <div class="container">
           <h1>Hello, World!</h1>
           <p>Welcome to your new @mewhhaha/squarehole app.</p>
+          {/* Fixi example (server-driven) */}
           <button fx-action="/api/click" fx-method="post" fx-target="#result">
-            Click me
+            Click me (fixi)
           </button>
           <div id="result"></div>
+          {/* Client example (on-demand handler) */}
+          <button onClick={hello}>Click me (client)</button>
         </div>
+        <Client />
       </body>
     </html>
   );
@@ -194,14 +204,10 @@ export default function SearchPage() {
     <div>
       <h1>Product Search</h1>
       <form fx-action="/api/search" fx-target="#results" fx-trigger="input">
-        <input
-          type="search"
-          name="q"
-          placeholder="Search products..."
-        />
+        <input type="search" name="q" placeholder="Search products..." />
       </form>
       <div id="results">
-        <!-- Results will be loaded here -->
+        {/* Results will be loaded here */}
       </div>
     </div>
   );
@@ -237,9 +243,11 @@ export async function loader({ request }) {
 
 ### Streaming with Suspense
 
+### Streaming with Suspense
+
 ```tsx
 // app/dashboard.tsx
-import { Suspense } from "@mewhhaha/squarehole/components";
+import { Suspense } from "@mewhhaha/squarehole/suspense";
 
 async function SlowData() {
   const data = await fetch("https://api.slow-endpoint.com/data");
@@ -258,9 +266,31 @@ export default function Dashboard() {
 }
 ```
 
-### Client Signals
+### Using Both fixi and Client
 
-Squarehole includes a tiny client state primitive. Create a signal on the server with `useState(initial)` and render it directly as `{count}`. Attach handlers with `on={function click(){}}`; the handler `this` (and third arg) is a persistent per‑element context initialized from the function’s enumerable properties.
+fixi and the Client runtime solve different problems and work great together:
+
+- When to use fixi
+  - Server-driven interactions: form posts, link clicks, partial updates.
+  - Progressive enhancement with minimal JS (fx-action, fx-target, fx-method, fx-trigger).
+  - Great for CRUD, pagination, search, and streaming HTML fragments.
+
+- When to use Client
+  - Local UI behavior that doesn’t need a network roundtrip (toggles, animations, small DOM tweaks).
+  - Fine-grained event handling and small state via `useState()` signals.
+  - On-demand code loading per interaction to keep initial JS minimal.
+
+- Combine them
+  - Use fixi for networking and server-rendered HTML; use Client for local UI polish.
+  - If you attach both fixi and `onClick` to the same element, default behavior will proceed unless you call `ev.preventDefault()` inside your client handler. Prefer sibling/wrapper elements, or let the client handler perform the fetch and DOM update itself.
+  - Keep client handlers small and self-contained; the router serves them from `/_client/f/<id>.js` and caches aggressively.
+  - For strict CSP, use `<Client nonce={cspNonce} />`.
+
+### Client Interactions and Signals
+
+Squarehole ships an ultra‑small interaction runtime that lets you attach event handlers with standard JSX props like `onClick`, `onInput`, `onMount`, and `onUnmount` — no framework hydration required. Handlers are shipped to the browser on first interaction and cached.
+
+Signals provide tiny server‑initialized state that can be rendered as text and updated from client handlers.
 
 ```tsx
 // app/_index.tsx
@@ -268,14 +298,25 @@ import { Client, useState } from "@mewhhaha/squarehole/client";
 
 export default function HomePage() {
   const count = useState(0);
+
+  // Option A: use regular function + "this" context
+  function increment(this: any) {
+    this.count.set((v: number) => v + 1);
+  }
+  (increment as any).count = count; // attach server-initialized state to the handler
+
+  // Option B: use args instead of "this"
+  function increment2(_el: Element, _ev: Event, state: any) {
+    state.count.set((v: number) => v + 1);
+  }
+  (increment2 as any).count = count;
+
   return (
     <html>
       <body>
-        {(() => {
-          function click(this: any) { this.count.set((v: number) => v + 1); }
-          (click as any).count = count; // attach server-initialized state to the handler
-          return <button on={click}>{count}</button>;
-        })()}
+        <button onClick={increment}>{count}</button>
+        {/* or: <button onClick={increment2}>{count}</button> */}
+        {/* Required once per document to enable client interactions */}
         <Client />
       </body>
     </html>
@@ -283,46 +324,227 @@ export default function HomePage() {
 }
 ```
 
-Lifecycle events: provide a single `on` prop with a named function; the function name becomes the event type (e.g., `mount`, `unmount`, `click`, `submit`).
+Tip: `Client` accepts an optional `nonce` prop for strict CSP: `<Client nonce={cspNonce} />`.
+
+Lifecycle events: use `onMount` and `onUnmount` on any element. `onMount` fires after `DOMContentLoaded`; `onUnmount` fires when the element is removed.
 
 ```tsx
-<button on={function submit(){ /* ... */ }} />
-<div on={function mount(){ /* called on DOMContentLoaded */ }} />
-<div on={function unmount(){ /* called when removed from DOM */ }} />
+<div onMount={function onMount(){ /* … */ }} />
+<div onUnmount={function onUnmount(){ /* … */ }} />
 ```
+
+Attribute binding: pass a function as an attribute value to compute it from state; it updates automatically when referenced signals change.
+
+```tsx
+// Toggle a class based on a signal
+import { Client, useState } from "@mewhhaha/squarehole/client";
+
+export default function Example() {
+  const active = useState(false);
+
+  function toggle(this: any) { this.active.set((v: boolean) => !v); }
+  (toggle as any).active = active;
+
+  // Bind class dynamically; merge with any existing class via el.className
+  function classFor(_el: Element, _ev: Event, s: any) {
+    return (s.active.get() ? "is-active" : "")
+  }
+  (classFor as any).active = active;
+
+  return (
+    <div>
+      <button onClick={toggle}>Toggle</button>
+      <div class={classFor}>Panel</div>
+      <Client />
+    </div>
+  );
+}
+```
+
+Notes:
+- Supported as function-valued props for any attribute. For boolean attributes like `hidden`, `disabled`, or `inert`, return a truthy value to set, falsy to remove.
+- SSR fallback: because the server can’t run your function, the attribute is computed on the client after load. If you need a default class server-side, initialize it in markup and have your function merge with `el.getAttribute('class')`.
 
 ## How Hydration Works
 
-Squarehole doesn’t use comment anchors or a compiler to hydrate. Instead, the server emits small data attributes and a tiny client bootstrap wires everything up on demand.
+Squarehole doesn’t use comment anchors or a compiler to hydrate. The server emits small `data-*` attributes, and a tiny client bootstrap wires everything up on demand.
 
 - Render-time markers
-  - Events: `on={function click(){}}` becomes a `data-sh-click="..."` attribute on the element. The value is Base64‑encoded JSON with:
+  - Events: `onClick={fn}` becomes `data-client-click="..."` on the element. The value is Base64‑encoded JSON with:
     - `t`: type (always `"f"` for inline function)
     - `i`: stable function id
     - `a`: initial context object, built from the function’s enumerable properties
-  - Signals: rendering `{count}` inserts a span like `<span data-sh-t="sid" data-sh-v="base64(json(initial))">escapedInitial</span>`.
+  - Signals: rendering `{count}` inserts a span like `<span data-client-t="sid" data-client-v="base64(json(initial))">escapedInitial</span>`.
 
 - Client bootstrap (`<Client />`)
-  - Seeds signals: scans `[data-sh-t]` and stores `id -> value` in a Map. `set(id, next)` updates all matching spans’ `textContent`.
-  - Delegated events: listens for `click`, `input`, `change`, `submit`. On an event, it walks up from the target to find the nearest `data-sh-{type}` attribute.
+  - Seeds signals: scans `[data-client-t]` and stores `id -> value` in a Map. `set(id, next)` updates all matching spans’ `textContent`.
+  - Delegated events: binds listeners for any `data-client-<event>` it finds at startup (no fixed list). On events, it walks up from the target to the closest element with `data-client-<event>`.
   - Payload decoding: decodes and JSON‑parses the Base64 payload with a custom reviver that turns signal objects into tiny proxies `{ get(); set(next) }`.
-  - Per‑element context: stores a stable context object in a Map attached to the element, keyed by the encoded payload. Handlers run as `fn.call(ctx, el, ev, ctx)` so `this === ctx`.
-  - Lazy load: the first time an interaction happens, the function module is dynamically imported from `/_sh/f/<id>.js` and then cached.
-  - Lifecycle: `on={function mount(){}}` runs after `DOMContentLoaded` (emitted as `data-sh-mount`). `on={function unmount(){}}` runs when the element is removed (observed via `MutationObserver`, emitted as `data-sh-unmount`). After unmount, the element’s context for that payload is cleared to avoid leaks.
+  - Per‑element context: keeps a stable context Map attached to the element, keyed by the encoded payload. Handlers run as `fn.call(ctx, el, ev, ctx)` so both `this` and the 3rd arg are the same context.
+  - Lazy load: on first interaction, the function module is dynamically imported from `/_client/f/<id>.js` and then cached.
+  - Lifecycle: `onMount={...}` runs after `DOMContentLoaded` (`data-client-mount`); `onUnmount={...}` runs when the element is removed (`data-client-unmount`). After unmount, its context is cleared.
 
 - Server‑initialized state → client
-  - Define state on the server with `const count = useState(0)` and render `{count}` to seed and bind it.
-  - Attach signals (and other JSON‑serializable values) to your handler function as properties before render: `click.count = count`.
-  - On the client, the JSON reviver restores `click.count` to a proxy with `get()`/`set()` so `this.count.set(v => v + 1)` updates all bound spans.
+  - Create state on the server with `const count = useState(0)` and render `{count}` to seed it.
+  - Attach signals (and other JSON‑serializable values) to your handler function before render: `handler.count = count`.
+  - On the client, the JSON reviver restores `handler.count` to a proxy with `get()`/`set()` so `this.count.set(v => v + 1)` updates all bound spans.
 
 - Why this design
-  - No codegen or comment nodes; just explicit attributes your elements already own.
-  - Minimal runtime: a few listeners, a signal Map, and on‑demand `import()` for handlers.
+  - No codegen; just explicit attributes your elements already own.
+  - Minimal runtime: a few listeners, a signal Map, and on‑demand `import()`.
 
-- Limitations and tips
-  - Event inference uses the function name (`function click(){}` → `click`). Keep handler names intact if you minify.
-  - Default delegated events are `click`, `input`, `change`, `submit`.
-  - Handler functions must be self‑contained (don’t close over server‑only values). Their source code is shipped to the browser.
+- Notes
+  - Prefer named functions for clarity; arrow functions work too, but won’t have a dynamic `this` (use the 3rd arg `state`).
+  - Handler functions must be self‑contained (their source is shipped to the browser).
+
+### Client Function Storage (KV or custom)
+
+By default, inline client handlers are stored in an in‑memory map per isolate. For multi‑isolate and production setups, configure your own storage.
+
+- Interface
+
+```ts
+export interface ClientFunctionStorage {
+  get(id: string): Promise<string | undefined> | string | undefined;
+  put(id: string, source: string): Promise<void> | void;
+}
+```
+
+- Cloudflare KV
+
+```ts
+// src/index.ts
+import { Router } from "@mewhhaha/squarehole";
+
+export default {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext) {
+    // Provide storage as the optional second arg to Router
+    const storage = {
+      async get(id: string) { return await env.KV.get(id); },
+      async put(id: string, source: string) { await env.KV.put(id, source); },
+    };
+    const router = Router(routes, storage);
+    // Router automatically serves /_client/f/<id>.js for client handlers
+    return router.handle(request, env, ctx);
+  },
+};
+```
+
+- Custom storage
+
+```ts
+import { Router } from "@mewhhaha/squarehole";
+type ClientFunctionStorage = {
+  get(id: string): Promise<string | undefined> | string | undefined;
+  put(id: string, source: string): Promise<void> | void;
+};
+
+const store: ClientFunctionStorage = {
+  async get(id) { return await DB.get(id); },
+  async put(id, source) { await DB.put(id, source); },
+};
+
+const router = Router(routes, store);
+
+- KV + Cache API (optimal)
+
+The router’s built-in endpoint (`/_client/f/<id>.js`) already uses Cloudflare’s Cache API to cache the generated ESM module response with `Cache-Control: public, max-age=31536000, immutable`. To minimize KV reads on cold paths before the HTTP cache is warm, you can add a small in‑memory read‑through cache layered over KV:
+
+```ts
+// src/index.ts
+import { Router } from "@mewhhaha/squarehole";
+
+type ClientFunctionStorage = {
+  get(id: string): Promise<string | undefined> | string | undefined;
+  put(id: string, source: string): Promise<void> | void;
+};
+
+// Tiny LRU-ish cache using Map with a size cap
+function memoryCache<T>(limit = 512) {
+  const map = new Map<string, T>();
+  return {
+    get(key: string) {
+      const v = map.get(key);
+      if (v !== undefined) {
+        // refresh recency
+        map.delete(key); map.set(key, v);
+      }
+      return v;
+    },
+    set(key: string, val: T) {
+      if (map.size >= limit) {
+        // evict oldest
+        const first = map.keys().next().value; map.delete(first);
+      }
+      map.set(key, val);
+    },
+  };
+}
+
+export default {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext) {
+    const mem = memoryCache<string>(512);
+    const storage: ClientFunctionStorage = {
+      async get(id) {
+        const m = mem.get(id);
+        if (m !== undefined) return m;
+        const v = await env.KV.get(id);
+        if (v != null) mem.set(id, v);
+        return v ?? undefined;
+      },
+      async put(id, source) {
+        mem.set(id, source);
+        await env.KV.put(id, source);
+      },
+    };
+
+    // Cache API is automatically used by the router when serving /_client/f/<id>.js
+    const router = Router(routes, storage);
+    return router.handle(request, env, ctx);
+  },
+};
+```
+
+Notes:
+- Memory cache is per‑isolate; it improves hot‑path latency but won’t persist across cold starts.
+- The HTTP response for the function module is edge‑cached automatically; you don’t need extra code for that.
+```
+
+### Attribute Formats (Deep Dive)
+
+Event handlers (e.g., `onClick` produces `data-client-click`):
+
+```html
+<button data-client-click="eyJ0IjoiZiIsImlkIjoiZjE5azJ0IiwgImEiOnsibnVtIjoyLCJjb3VudCI6eyJfX3NoIjoic2lnIiwiaSI6InNnd2EyIn19}"></button>
+```
+
+Decoding the Base64 value yields JSON:
+
+```json
+{
+  "t": "f",                  // inline function
+  "i": "f19k2t",            // stable id from function source (FNV-1a → base36)
+  "a": {
+    "num": 2,               // any JSON-serializable props you set on the function
+    "count": {               // signals serialize to a minimal descriptor
+      "__client": "sig",
+      "i": "sgwa2"         // signal id
+    }
+  }
+}
+```
+
+- The client reviver turns `{ "__client":"sig", i:"..." }` into a proxy with `get()`/`set()`.
+- The per-element context for this payload is cached under the raw attribute string; handlers run as `fn.call(ctx, el, ev, ctx)`.
+
+Signals in content:
+
+```html
+<span data-client-t="sgwa2" data-client-v="eyJpbml0aWFsIjowfQ==">0</span>
+```
+
+- `data-client-t` is the signal id.
+- `data-client-v` is Base64 of the JSON-serialized initial value; the bootstrap seeds the value map from these on `DOMContentLoaded`.
 
 ### API Routes
 
@@ -467,7 +689,7 @@ my-app/
 │       ├── blog._index.tsx # /blog
 │       └── blog.$id.tsx   # /blog/:id
 ├── public/                # Static assets
-│   └── fixi.js           # fixi.js library
+│   └── fixi.js           # fixi.js library (optional)
 ├── src/
 │   └── index.ts          # Worker entry point
 ├── package.json

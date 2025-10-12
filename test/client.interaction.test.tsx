@@ -28,7 +28,7 @@ describe("Client interactions (no bundler)", () => {
           default: () => (
             <html>
               <body>
-                <button id="b" on={click}>0</button>
+                <button id="b" onClick={click}>0</button>
                 <Client />
               </body>
             </html>
@@ -46,7 +46,7 @@ describe("Client interactions (no bundler)", () => {
     );
 
     const html = await res.text();
-    const m = html.match(/data-sh-click="([^"]+)"/);
+    const m = html.match(/data-client-click="([^"]+)"/);
     expect(m).toBeTruthy();
     const encoded = m![1];
     const json = decodeURIComponent(escape(atob(encoded)));
@@ -57,7 +57,7 @@ describe("Client interactions (no bundler)", () => {
 
     // Now fetch the function module via the built-in route
     const modRes = await router.handle(
-      new Request(`https://example.com/_sh/f/${payload.i}.js`),
+      new Request(`https://example.com/_client/f/${payload.i}.js`),
       {} as Env,
       ctx,
     );

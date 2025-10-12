@@ -11,8 +11,8 @@ const makeCtx = () => {
   return { ctx, pending } as const;
 };
 
-describe("on={fn} lifecycle attrs", () => {
-  it("emits data-sh-mount and data-sh-unmount from on={function mount/unmount(){}}", async () => {
+describe("onMount/onUnmount lifecycle attrs", () => {
+  it("emits data-client-mount and data-client-unmount from onMount/onUnmount", async () => {
     const count = useState(0);
     function mount(this: any){ this.count.set((v:number)=>v+1); }
     (mount as any).count = count;
@@ -26,8 +26,8 @@ describe("on={fn} lifecycle attrs", () => {
           default: () => (
             <html>
               <body>
-                <div id="n" on={mount} />
-                <div id="u" on={unmount} />
+                <div id="n" onMount={mount} />
+                <div id="u" onUnmount={unmount} />
                 <Client />
               </body>
             </html>
@@ -40,8 +40,7 @@ describe("on={fn} lifecycle attrs", () => {
     const { ctx } = makeCtx();
     const res = await router.handle(new Request("https://example.com/"), {} as Env, ctx);
     const html = await res.text();
-    expect(html).toMatch(/id="n"[^>]*data-sh-mount=/);
-    expect(html).toMatch(/id="u"[^>]*data-sh-unmount=/);
+    expect(html).toMatch(/id="n"[^>]*data-client-mount=/);
+    expect(html).toMatch(/id="u"[^>]*data-client-unmount=/);
   });
 });
-

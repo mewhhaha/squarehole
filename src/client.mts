@@ -57,22 +57,22 @@ export function define<Args = unknown>(fn: Handler<Args>): DefinedRef<Args> {
 // -----------------------
 
 export type Signal<T> = {
-  readonly __sh: "sig";
+  readonly __client: "sig";
   readonly id: string;
   readonly initial: T;
-  toJSON(): { __sh: "sig"; i: string };
+  toJSON(): { __client: "sig"; i: string };
 };
 
 export function useState<T>(initial: T): Signal<T> {
   return useHook(() => {
     const id = crypto.randomUUID().replaceAll(/[^A-Za-z0-9_-]/g, "");
     return {
-      __sh: "sig",
+      __client: "sig",
       id,
       initial,
       [SIGNAL]: true,
       toJSON() {
-        return { __sh: "sig", i: id } as const;
+        return { __client: "sig", i: id } as const;
       },
     } as const;
   });
@@ -91,12 +91,14 @@ export const Client = ({ nonce }: { nonce?: string }): Html => {
     async function load(spec){ if(!loaded.has(spec)) loaded.set(spec, import(spec)); return loaded.get(spec); }
     const state = new Map();
     // Persistent per-element context for handlers, keyed by encoded payload
-    const CTX = Symbol.for('sh.ctx');
+    const CTX = Symbol.for('client.ctx');
+    // Signal id -> set of bound attribute bindings { el, attr, val }
+    const watchers = new Map();
     function valDecode(s){ try { return JSON.parse(decodeURIComponent(escape(atob(s)))); } catch { return undefined; } }
     function seed(){
-      document.querySelectorAll('[data-sh-t]').forEach((el)=>{
-        const id = el.getAttribute('data-sh-t');
-        const enc = el.getAttribute('data-sh-v');
+      document.querySelectorAll('[data-client-t]').forEach((el)=>{
+        const id = el.getAttribute('data-client-t');
+        const enc = el.getAttribute('data-client-v');
         if(id && enc && !state.has(id)) state.set(id, valDecode(enc));
       });
     }
@@ -104,11 +106,16 @@ export const Client = ({ nonce }: { nonce?: string }): Html => {
       const prev = state.get(id);
       const val = (typeof next === 'function') ? next(prev) : next;
       state.set(id, val);
-      document.querySelectorAll('[data-sh-t="'+id+'"]').forEach(el => { el.textContent = String(val); });
+      document.querySelectorAll('[data-client-t="'+id+'"]').forEach(el => { el.textContent = String(val); });
+      // Update any attribute bindings that reference this signal
+      const setFor = watchers.get(id);
+      if (setFor && setFor.size) {
+        setFor.forEach((b)=>{ try { applyAttr(b.el, b.attr, b.val); } catch(_){} });
+      }
     }
     function get(id){ return state.get(id); }
     function revive(key, value){
-      if(value && value.__sh === 'sig' && typeof value.i === 'string'){
+      if(value && value.__client === 'sig' && typeof value.i === 'string'){
         const id = value.i;
         return {
           id,
@@ -119,7 +126,7 @@ export const Client = ({ nonce }: { nonce?: string }): Html => {
       return value;
     }
     function decodePayload(el, type){
-      const name = 'data-sh-' + type;
+      const name = 'data-client-' + type;
       const val = el.getAttribute(name);
       if(!val) return null;
       try{
@@ -129,6 +136,45 @@ export const Client = ({ nonce }: { nonce?: string }): Html => {
     }
     function decodeRaw(val){
       try{ return JSON.parse(decodeURIComponent(escape(atob(val))), revive); }catch(_){ return null; }
+    }
+    function collectSignalIds(ctx){
+      const ids = new Set();
+      try {
+        for (const k in ctx) {
+          const v = ctx[k];
+          if (v && typeof v === 'object' && typeof v.id === 'string') ids.add(v.id);
+        }
+      } catch(_){}
+      return ids;
+    }
+    async function applyAttr(el, attr, val){
+      const data = val && decodeRaw(val);
+      if(!data) return;
+      let fn;
+      if(data.t === 'm'){
+        const mod = await load(data.s);
+        fn = mod[data.e] ?? mod.default;
+      } else if (data.t === 'f') {
+        const mod = await load('/_client/f/' + data.i + '.js');
+        fn = mod.default;
+      } else return;
+      const ctx = getCtx(el, val, (data && typeof data.a === 'object' && data.a) || {});
+      let result;
+      try { result = await fn.call(ctx, el, new Event('update'), ctx); } catch(_) { return; }
+      // Apply result to attribute
+      if (attr === 'class') {
+        el.setAttribute('class', result == null ? '' : String(result));
+      } else if (attr === 'hidden' || attr === 'disabled' || attr === 'inert') {
+        if (!!result) el.setAttribute(attr, ''); else el.removeAttribute(attr);
+      } else {
+        if (result == null) el.removeAttribute(attr); else el.setAttribute(attr, String(result));
+      }
+      // Register watchers for signals referenced by ctx
+      const ids = collectSignalIds(ctx);
+      ids.forEach((id)=>{
+        if(!watchers.has(id)) watchers.set(id, new Set());
+        watchers.get(id).add({ el, attr, val });
+      });
     }
     function getCtx(el, key, init){
       let map = el[CTX];
@@ -140,37 +186,64 @@ export const Client = ({ nonce }: { nonce?: string }): Html => {
     async function handle(ev){
       let el = ev.target instanceof Element ? ev.target : null;
       while(el){
-        const name = 'data-sh-' + ev.type;
+        const name = 'data-client-' + ev.type;
         const val = el.getAttribute(name);
         const data = val && decodePayload(el, ev.type);
         if(data){
-          try {
-            if(data.t === 'm'){
-              const mod = await load(data.s);
-              const fn = mod[data.e] ?? mod.default;
-              const ctx = getCtx(el, val, (data && typeof data.a === 'object' && data.a) || {});
-              await fn.call(ctx, el, ev, ctx);
-            } else if (data.t === 'f') {
-              const mod = await load('/_sh/f/' + data.i + '.js');
-              const fn = mod.default;
-              const ctx = getCtx(el, val, (data && typeof data.a === 'object' && data.a) || {});
-              await fn.call(ctx, el, ev, ctx);
-            }
-          } finally {
-            // Always prevent default when a handler is present
-            if(typeof ev.preventDefault === 'function') ev.preventDefault();
+          if(data.t === 'm'){
+            const mod = await load(data.s);
+            const fn = mod[data.e] ?? mod.default;
+            const ctx = getCtx(el, val, (data && typeof data.a === 'object' && data.a) || {});
+            await fn.call(ctx, el, ev, ctx);
+          } else if (data.t === 'f') {
+            const mod = await load('/_client/f/' + data.i + '.js');
+            const fn = mod.default;
+            const ctx = getCtx(el, val, (data && typeof data.a === 'object' && data.a) || {});
+            await fn.call(ctx, el, ev, ctx);
           }
           return;
         }
         el = el.parentElement;
       }
     }
-    const events = ['click','change','input','submit'];
-    for(const e of events){ document.addEventListener(e, handle); }
+    // Dynamically bind delegated events for any data-client-<event> present
+    function bindDelegatedEvents(){
+      const events = new Set();
+      // scan once at startup; add listeners for all found event types
+      document.querySelectorAll('*').forEach((el)=>{
+        const names = el.getAttributeNames?.();
+        if(!names) return;
+        for(const n of names){
+          if(n && n.startsWith('data-client-')){
+            const ev = n.slice(12);
+            if(ev && ev !== 'mount' && ev !== 'unmount' && ev !== 't' && ev !== 'v'){
+              events.add(ev);
+            }
+          }
+        }
+      });
+      for(const e of events){ document.addEventListener(e, handle); }
+    }
+    bindDelegatedEvents();
+    // Bind attribute handlers and compute initial values
+    function bindAttrHandlers(){
+      document.querySelectorAll('*').forEach((el)=>{
+        const names = el.getAttributeNames?.();
+        if(!names) return;
+        for(const n of names){
+          if(n && n.startsWith('data-client-attr-')){
+            const attr = n.slice(17);
+            const val = el.getAttribute(n);
+            if (!val) continue;
+            applyAttr(el, attr, val);
+          }
+        }
+      });
+    }
     // Mount handlers after DOM is ready
     function runMounts(){
-      document.querySelectorAll('[data-sh-mount]').forEach(async (el)=>{
-        const val = el.getAttribute('data-sh-mount');
+      document.querySelectorAll('[data-client-mount]').forEach(async (el)=>{
+        const val = el.getAttribute('data-client-mount');
         const data = val && decodeRaw(val);
         if(!data) return;
         try {
@@ -180,7 +253,7 @@ export const Client = ({ nonce }: { nonce?: string }): Html => {
             const ctx = getCtx(el, val, (data && typeof data.a === 'object' && data.a) || {});
             await fn.call(ctx, el, new Event('mount'), ctx);
           } else if (data.t === 'f') {
-            const mod = await load('/_sh/f/' + data.i + '.js');
+            const mod = await load('/_client/f/' + data.i + '.js');
             const fn = mod.default;
             const ctx = getCtx(el, val, (data && typeof data.a === 'object' && data.a) || {});
             await fn.call(ctx, el, new Event('mount'), ctx);
@@ -191,7 +264,7 @@ export const Client = ({ nonce }: { nonce?: string }): Html => {
     // Unmount handlers when elements are removed
     function observeRemovals(){
       const callUnmount = async (el)=>{
-        const val = el.getAttribute && el.getAttribute('data-sh-unmount');
+        const val = el.getAttribute && el.getAttribute('data-client-unmount');
         if(!val) return;
         const data = decodeRaw(val);
         if(!data) return;
@@ -202,7 +275,7 @@ export const Client = ({ nonce }: { nonce?: string }): Html => {
             const ctx = getCtx(el, val, (data && typeof data.a === 'object' && data.a) || {});
             await fn.call(ctx, el, new Event('unmount'), ctx);
           } else if (data.t === 'f') {
-            const mod = await load('/_sh/f/' + data.i + '.js');
+            const mod = await load('/_client/f/' + data.i + '.js');
             const fn = mod.default;
             const ctx = getCtx(el, val, (data && typeof data.a === 'object' && data.a) || {});
             await fn.call(ctx, el, new Event('unmount'), ctx);
@@ -217,7 +290,7 @@ export const Client = ({ nonce }: { nonce?: string }): Html => {
             if(!(n instanceof Element)) return;
             // Call on the removed element and any descendants
             callUnmount(n);
-            n.querySelectorAll && n.querySelectorAll('[data-sh-unmount]').forEach((el)=>callUnmount(el));
+            n.querySelectorAll && n.querySelectorAll('[data-client-unmount]').forEach((el)=>callUnmount(el));
             // Best-effort: clear entire context holder to allow GC
             try { if(n[CTX]) { n[CTX].clear?.(); n[CTX] = undefined; } } catch(_){}
           });
@@ -225,11 +298,11 @@ export const Client = ({ nonce }: { nonce?: string }): Html => {
       });
       mo.observe(document, { childList: true, subtree: true });
     }
-    if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ()=>{ seed(); runMounts(); });
-    else { seed(); runMounts(); }
+    if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ()=>{ seed(); runMounts(); bindAttrHandlers(); });
+    else { seed(); runMounts(); bindAttrHandlers(); }
     observeRemovals();
     // expose minimal API for inline handlers to use
-    window.__sh = Object.assign(window.__sh || {}, { load, set, get, state });
+    window.__client = Object.assign(window.__client || {}, { load, set, get, state });
   })();
 </script>`);
 };

@@ -15,7 +15,7 @@ describe("Signal auto-render in JSX", () => {
   it("renders a signal child as a bound span with seed attrs", async () => {
     const count = useState(7);
 
-    // Handler via on={function click(){}} with function property for state
+    // Handler via onClick with function property for state
     function click(this: any) {
       this.count.set((v: number) => v + 1);
     }
@@ -29,7 +29,7 @@ describe("Signal auto-render in JSX", () => {
           default: () => (
             <html>
               <body>
-                <button id="btn" on={click}>{count}</button>
+                <button id="btn" onClick={click}>{count}</button>
                 <Client />
               </body>
             </html>
@@ -43,10 +43,10 @@ describe("Signal auto-render in JSX", () => {
     const res = await router.handle(new Request("https://example.com/"), {} as Env, ctx);
     const html = await res.text();
 
-    // Should inject span with data-sh-t and data-sh-v
-    const tAttr = html.match(/data-sh-t="([^"]+)"/);
+    // Should inject span with data-client-t and data-client-v
+    const tAttr = html.match(/data-client-t="([^"]+)"/);
     expect(tAttr?.[1]).toBe(count.id);
-    const vAttr = html.match(/data-sh-v="([^"]+)"/);
+    const vAttr = html.match(/data-client-v="([^"]+)"/);
     expect(vAttr).toBeTruthy();
     const decoded = JSON.parse(decodeURIComponent(escape(atob(vAttr![1]))));
     expect(decoded).toBe(7);

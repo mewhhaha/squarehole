@@ -11,8 +11,8 @@ const makeCtx = () => {
   return { ctx, pending } as const;
 };
 
-describe("JSX on prop sugar", () => {
-  it("supports on={function click(){}} using function name as event", async () => {
+describe("JSX onX prop sugar", () => {
+  it("supports onClick={() => ...} mapping to data-client-click", async () => {
     const pattern = new URLPattern({ pathname: "/" });
     const fragments: fragment[] = [
       {
@@ -21,7 +21,14 @@ describe("JSX on prop sugar", () => {
           default: () => (
             <html>
               <body>
-                <button id="c" on={function click(el: Element){ (el as HTMLElement).textContent = 'x'; }}>0</button>
+                <button
+                  id="c"
+                  onClick={(el: Element) => {
+                    (el as HTMLElement).textContent = 'x';
+                  }}
+                >
+                  0
+                </button>
                 <Client />
               </body>
             </html>
@@ -34,7 +41,7 @@ describe("JSX on prop sugar", () => {
     const { ctx } = makeCtx();
     const res = await router.handle(new Request("https://example.com/"), {} as Env, ctx);
     const html = await res.text();
-    const m = html.match(/data-sh-click="([^"]+)"/);
+    const m = html.match(/data-client-click="([^"]+)"/);
     expect(m).toBeTruthy();
   });
 });

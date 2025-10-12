@@ -23,7 +23,7 @@
 import { type JSX } from "./runtime/jsx.mjs";
 import { into, isHtml, type Html } from "./runtime/node.mts";
 import { withSuspenseContext } from "./suspense.mts";
-import { serveClientFunction } from "./client-server.mts";
+import { serveClientFunction, setClientFunctionStorage, type ClientFunctionStorage } from "./client-server.mts";
 import { runWithContextStore } from "./context.mts";
 import { runWithHooksStore } from "./runtime/hooks.mts";
 
@@ -122,16 +122,24 @@ export type router = {
  * Creates a router instance from an array of routes.
  *
  * @param routes - Array of route tuples
+ * @param storage - Optional client function storage (KV/custom). If provided,
+ *   the router will use it to persist and serve on-demand client handlers.
  * @returns A router instance with a handle method
  *
  * @example
  * ```typescript
+ * const storage = {
+ *   async get(id) { return await env.KV.get(id); },
+ *   async put(id, src) { await env.KV.put(id, src); },
+ * };
  * const router = Router([
  *   [new URLPattern({ pathname: "/users/:id" }), fragments]
- * ]);
+ * ], storage);
  * ```
  */
-export const Router = (routes: route[]): router => {
+export const Router = (routes: route[], storage?: ClientFunctionStorage): router => {
+  // Optional: configure client function storage for this router instance
+  if (storage) setClientFunctionStorage(storage);
   const handle = (
     request: Request,
     ...args: ctx["context"]
@@ -140,8 +148,8 @@ export const Router = (routes: route[]): router => {
       const urlStr = request.url;
       const url = new URL(urlStr);
       // Built-in endpoint for serving small client handler modules
-      if (url.pathname.startsWith("/_sh/f/")) {
-        return serveClientFunction(url.pathname);
+      if (url.pathname.startsWith("/_client/f/")) {
+        return await serveClientFunction(url.pathname, request, args[1]);
       }
       let fragments: fragment[] | undefined;
       let params: Record<string, string> | undefined;

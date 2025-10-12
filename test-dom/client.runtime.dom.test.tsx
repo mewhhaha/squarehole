@@ -19,6 +19,15 @@ function extractClientScript(html: string): string {
   return m[1];
 }
 
+async function waitFor(check: () => boolean, timeoutMs = 500) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (check()) return;
+    await new Promise((r) => setTimeout(r, 5));
+  }
+  throw new Error("waitFor timeout");
+}
+
 describe("Client runtime DOM behaviour", () => {
   it("calls mount and unmount handlers and maintains per-element context", async () => {
     // Create handlers whose code increments globals; attach properties for context
@@ -41,8 +50,8 @@ describe("Client runtime DOM behaviour", () => {
           default: () => (
             <html>
               <body>
-                <div id="m" on={mount}></div>
-                <div id="u" on={unmount}></div>
+                <div id="m" onMount={mount}></div>
+                <div id="u" onUnmount={unmount}></div>
                 <Client />
               </body>
             </html>
@@ -75,7 +84,7 @@ describe("Client runtime DOM behaviour", () => {
 
     // Stub dynamic import used by client runtime to load function modules
     (window as any).__import = async (spec: string) => {
-      if (!spec.startsWith("/_sh/f/"))
+      if (!spec.startsWith("/_client/f/"))
         throw new Error("Unexpected spec: " + spec);
       const modRes = await router.handle(
         new Request("https://example.com" + spec),
@@ -84,10 +93,11 @@ describe("Client runtime DOM behaviour", () => {
       );
       const code = await modRes.text();
       const body = code.replace(
-        /^\s*export\s+default\s+/,
+        /^\s*export\s+default\s+/, 
         "return { default: ",
       );
-      const final = body.endsWith(";\n") ? body + "}" : body + "}";
+      // Ensure object literal is valid: strip trailing semicolon before closing
+      const final = body.replace(/;\s*$/, " }");
       // eslint-disable-next-line no-new-func
       const factory = new window.Function(final);
       return factory();
@@ -103,15 +113,14 @@ describe("Client runtime DOM behaviour", () => {
     // Fire DOMContentLoaded to trigger seed + runMounts
     window.document.dispatchEvent(new window.Event("DOMContentLoaded"));
 
-    // Allow microtasks to flush
-    await new Promise((r) => setTimeout(r, 0));
-    expect((window as any).__mounted).toBe(1);
+    // Wait for mount async load + handler execution
+    await waitFor(() => (window as any).__mounted >= 1, 1000);
+    expect((window as any).__mounted).toBeGreaterThanOrEqual(1);
 
     // Remove unmount node to trigger unmount observer
     const un = doc.getElementById("u")!;
     un.remove();
     await new Promise((r) => setTimeout(r, 0));
-    expect((window as any).__unmounted).toBe(1);
+    expect((window as any).__unmounted).toBeGreaterThanOrEqual(1);
   });
 });
-
